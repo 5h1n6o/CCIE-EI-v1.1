@@ -149,166 +149,150 @@
 2.1.f.i                Macro segmentation using VNs  
 2.1.f.ii                Micro-level segmentation using SGTs and SGACLs
 
-### 2.2        Cisco SD-WAN        
-
-2.2.a            Controller architecture    
-2.2.a.i                Management plane (vManage)
-2.2.a.ii                Orchestration plane (vBond)
-2.2.a.iii                Control plane (vSmart)
-2.2.b            SD-WAN underlay    
-2.2.b.i                WAN cloud edge deployment (AWS, Azure, Google Cloud)
-2.2.b.ii                WAN edge deployment (hardware)
-2.2.b.iii                Greenfield, brownfield, and hybrid deployments
-2.2.b.iv                System configuration (system IP, site ID, org name, vBond address)
-2.2.b.v                Transport configuration (underlay and tunnel interfaces, allowed services, TLOC extension)
-2.2.c            Overlay Management Protocol (OMP)    
-2.2.c.i                OMP attributes
-2.2.c.ii                IPsec key management
-2.2.c.iii                Route aggregation
-2.2.c.iv                Redistribution
-2.2.c.v                Additional features (BGP AS path propagation, SDA integration)
-2.2.d            Configuration templates    
-2.2.d.i                CLI templates
-2.2.d.ii                Feature templates
-2.2.d.iii                Device templates
-2.2.e            Centralized policies    
-2.2.e.i                Data policies
-2.2.e.ii                Application-aware routing policies
-2.2.e.iii                Control policies
-2.2.f            Localized policies    
-2.2.f.i                Access lists
+### 2.2        Cisco SD-WAN
+2.2.a            Controller architecture  
+2.2.a.i                Management plane (vManage)  
+2.2.a.ii                Orchestration plane (vBond)  
+2.2.a.iii                Control plane (vSmart)  
+2.2.b            SD-WAN underlay  
+2.2.b.i                WAN cloud edge deployment (AWS, Azure, Google Cloud)  
+2.2.b.ii                WAN edge deployment (hardware)  
+2.2.b.iii                Greenfield, brownfield, and hybrid deployments  
+2.2.b.iv                System configuration (system IP, site ID, org name, vBond address)  
+2.2.b.v                Transport configuration (underlay and tunnel interfaces, allowed services, TLOC extension)  
+2.2.c            Overlay Management Protocol (OMP)  
+2.2.c.i                OMP attributes  
+2.2.c.ii                IPsec key management  
+2.2.c.iii                Route aggregation  
+2.2.c.iv                Redistribution  
+2.2.c.v                Additional features (BGP AS path propagation, SDA integration)  
+2.2.d            Configuration templates  
+2.2.d.i                CLI templates  
+2.2.d.ii                Feature templates  
+2.2.d.iii                Device templates  
+2.2.e            Centralized policies  
+2.2.e.i                Data policies  
+2.2.e.ii                Application-aware routing policies  
+2.2.e.iii                Control policies  
+2.2.f            Localized policies  
+2.2.f.i                Access lists  
 2.2.f.ii                Route policies
-                
-3    Transport Technologies and Solutions
 
-3.1        Static point-to-point GRE tunnels        
-                                
-3.2        MPLS        
+## 3 Transport Technologies and Solutions
+### 3.1 Static point-to-point GRE tunnels
 
-
-3.2.a            Operations    
-3.2.a.i                Label stack, LSR, LSP
-3.2.a.ii                LDP
-3.2.a.iii                MPLS ping, MPLS traceroute
-3.2.b            L3VPN    
-3.2.b.i                PE-CE routing using BGP
+### 3.2 MPLS        
+3.2.a            Operations  
+3.2.a.i                Label stack, LSR, LSP  
+3.2.a.ii                LDP  
+3.2.a.iii                MPLS ping, MPLS traceroute  
+3.2.b            L3VPN  
+3.2.b.i                PE-CE routing using BGP  
 3.2.b.ii                Basic MP-BGP VPNv4/VPNv6
-                
-3.3        DMVPN    
 
-   
+### 3.3 DMVPN
 3.3.a            Troubleshoot DMVPN Phase 3 with dual-hub    
 3.3.a.i                NHRP
 3.3.a.ii                IPsec/IKEv2 using preshared key
                 
-4    Infrastructure Security and Services            
+## 4 Infrastructure Security and Services
+### 4.1 Device security on Cisco IOS XE
+4.1.a            Control plane policing and protection  
+4.1.b            AAA  
 
-4.1.        Device security on Cisco IOS XE        
+### 4.2 Network security  
+4.2.a            Switch security features  
+4.2.a.i                VACL, PACL  
+4.2.a.ii                Storm control  
+4.2.a.iii                DHCP snooping, DHCP option 82  
+4.2.a.iv                IP Source Guard  
+4.2.a.v                Dynamic ARP Inspection  
+4.2.a.vi                Port security  
+4.2.b            Router security features  
+4.2.b.i                IPv6 traffic filters  
+4.2.b.ii                IPv4 access control lists  
+4.2.b.iii                Unicast Reverse Path Forwarding  
+4.2.c            IPv6 infrastructure security features  
+4.2.c.i                RA Guard  
+4.2.c.ii                DHCP Guard  
+4.2.c.iii                Binding table  
+4.2.c.iv                Device tracking  
+4.2.c.v                ND Inspection/Snooping  
+4.2.c.vi                Source Guard  
 
-4.1.a            Control plane policing and protection    
-4.1.b            AAA    
-                
-4.2.        Network security       
-
-4.2.a            Switch security features    
-4.2.a.i                VACL, PACL
-4.2.a.ii                Storm control
-4.2.a.iii                DHCP snooping, DHCP option 82
-4.2.a.iv                IP Source Guard
-4.2.a.v                Dynamic ARP Inspection
-4.2.a.vi                Port security
-4.2.b            Router security features    
-4.2.b.i                IPv6 traffic filters
-4.2.b.ii                IPv4 access control lists
-4.2.b.iii                Unicast Reverse Path Forwarding
-4.2.c            IPv6 infrastructure security features    
-4.2.c.i                RA Guard
-4.2.c.ii                DHCP Guard
-4.2.c.iii                Binding table
-4.2.c.iv                Device tracking
-4.2.c.v                ND Inspection/Snooping
-4.2.c.vi                Source Guard
-                
-4.3        System management        
-
-4.3.a            Device management    
-4.3.a.i                Console and VTY
-4.3.a.ii                SSH, SCP
-4.3.a.iii                RESTCONF, NETCONF                
-4.3.b            SNMP (v2c, v3)                    
-4.3.c            Logging    
-4.3.c.i                Local logging, syslog, debugs, conditional debugs                
-4.3.c.ii                Configuration change notification and logging
+### 4.3 System management
+4.3.a            Device management  
+4.3.a.i                Console and VTY  
+4.3.a.ii                SSH, SCP  
+4.3.a.iii                RESTCONF, NETCONF  
+4.3.b            SNMP (v2c, v3)  
+4.3.c            Logging  
+4.3.c.i                Local logging, syslog, debugs, conditional debugs  
+4.3.c.ii                Configuration change notification and logging  
 4.3.c.iii                Timestamps
-                
-4.4        Quality of service        
-                
-4.4.a            Differentiated services architecture    
-4.4.b            Classification, trust boundary                    
-4.4.c            Network Based Application Recognition (NBAR)    
-4.4.d            Marking DSCP values in IPv4 and IPv6 headers    
-4.4.e            Policing, shaping                    
-4.4.f            Congestion management and avoidance                    
-4.4.g            HQoS    
-4.4.h            End-to-end L3 QoS using MQC    
-                
-4.5        Network services        
 
-4.5.a            First Hop Redundancy Protocols    
-4.5.a.i                HSRP, VRRP               
-4.5.a.ii                Redundancy using IPv6 RS/RA
-4.5.b            Time synchronization protocols                    
-4.5.b.i                NTP as a client
-4.5.b.ii                PTP design considerations
-4.5.c            DHCP on Cisco devices    
-4.5.c.i                Client, server, relay          
-4.5.c.ii                Options
-4.5.c.iii                SLAAC/DHCPv6 integration
-4.5.c.iv                Stateful, stateless DHCPv6
-4.5.c.v                DHCPv6 Prefix Delegation
-4.5.d            IPv4 Network Address Translation    
-4.5.d.i                Static NAT, PAT
-4.5.d.ii                Dynamic NAT, PAT
-4.5.d.iii                Policy-based NAT, PAT
-4.5.d.iv                VRF-aware NAT, PAT
-4.5.d.v                VRF-aware Software Infrastructure (VASI) NAT
-                
-4.6        Network optimization        
+### 4.4 Quality of service              
+4.4.a            Differentiated services architecture  
+4.4.b            Classification, trust boundary  
+4.4.c            Network Based Application Recognition (NBAR)  
+4.4.d            Marking DSCP values in IPv4 and IPv6 headers  
+4.4.e            Policing, shaping  
+4.4.f            Congestion management and avoidance  
+4.4.g            HQoS  
+4.4.h            End-to-end L3 QoS using MQC              
 
-4.6.a            IP SLA (ICMP, UDP, TCP probes)                   
-4.6.b            Tracking objects and lists    
-4.6.c            Flexible NetFlow                    
-4.7        Network operations        
-4.7.a            Traffic capture    
-4.7.a.i                SPAN, RSPAN, ERSPAN                
-4.7.a.ii                Embedded Packet Capture
-4.7.b            Troubleshooting tools    
-4.7.b.i                Data path packet trace
+### 4.5 Network services
+4.5.a            First Hop Redundancy Protocols  
+4.5.a.i                HSRP, VRRP  
+4.5.a.ii                Redundancy using IPv6 RS/RA  
+4.5.b            Time synchronization protocols  
+4.5.b.i                NTP as a client  
+4.5.b.ii                PTP design considerations  
+4.5.c            DHCP on Cisco devices  
+4.5.c.i                Client, server, relay  
+4.5.c.ii                Options  
+4.5.c.iii                SLAAC/DHCPv6 integration  
+4.5.c.iv                Stateful, stateless DHCPv6  
+4.5.c.v                DHCPv6 Prefix Delegation  
+4.5.d            IPv4 Network Address Translation  
+4.5.d.i                Static NAT, PAT  
+4.5.d.ii                Dynamic NAT, PAT  
+4.5.d.iii                Policy-based NAT, PAT  
+4.5.d.iv                VRF-aware NAT, PAT  
+4.5.d.v                VRF-aware Software Infrastructure (VASI) NAT               
+
+### 4.6 Network optimization
+4.6.a            IP SLA (ICMP, UDP, TCP probes)  
+4.6.b            Tracking objects and lists  
+4.6.c            Flexible NetFlow  
+4.7        Network operations  
+4.7.a            Traffic capture  
+4.7.a.i                SPAN, RSPAN, ERSPAN  
+4.7.a.ii                Embedded Packet Capture  
+4.7.b            Troubleshooting tools  
+4.7.b.i                Data path packet trace  
 4.7.b.ii                Conditional debugger (debug platform condition)
-                
-5    Infrastructure Automation and Programmability       
 
-5.1        Data encoding formats        
+## 5 Infrastructure Automation and Programmability       
+### 5.1 Data encoding formats
+5.1.a            JSON  
+5.1.b            XML  
+5.1.c            YAML  
+5.1.d            Jinja               
 
-5.1.a            JSON    
-5.1.b            XML    
-5.1.c            YAML    
-5.1.d            Jinja    
-                
-5.2        Automation and scripting        
+### 5.2 Automation and scripting
+5.2.a            EEM applets  
+5.2.b            Guest shell  
+5.2.b.i                Linux environment  
+5.2.b.ii                CLI Python module  
+5.2.b.iii                EEM Python module               
 
-5.2.a            EEM applets    
-5.2.b            Guest shell    
-5.2.b.i                Linux environment
-5.2.b.ii                CLI Python module                
-5.2.b.iii                EEM Python module
-                
-5.3        Programmability
+### 5.3 Programmability
+5.3.a            Interaction with vManage API  
+5.3.a.i                Python requests library and Postman  
+5.3.a.ii                Monitoring endpoints  
+5.3.a.iii                Configuration endpoints  
+5.3.b            Interaction with Cisco DNA Center API using HTTP requests (GET, PUT, POST) via Python requests library and Postman  
+5.3.c            Deploy and verify model-driven telemetry  
 
-5.3.a            Interaction with vManage API                    
-5.3.a.i                Python requests library and Postman
-5.3.a.ii                Monitoring endpoints
-5.3.a.iii                Configuration endpoints
-5.3.b            Interaction with Cisco DNA Center API using HTTP requests (GET, PUT, POST) via Python requests library and Postman    
-5.3.c            Deploy and verify model-driven telemetry    
 5.3.c.i                Configure on-change subscription using gRPC
