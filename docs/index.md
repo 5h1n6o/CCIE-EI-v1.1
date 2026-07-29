@@ -1,13 +1,46 @@
 ---
-layout: default
 title: CCIE Enterprise Infrastructure v1.1
+layout: home
 nav_order: 1
 ---
 
-# CCIE Enterprise Infrastructure v1.1 学習メモ
+# CCIE Enterprise Infrastructure v1.1
 
-このサイトは Cisco CCIE Enterprise Infrastructure v1.1 Blueprint に基づき、
-学習内容・設定例・試験対策を体系的にまとめたものです。
+CCIE Enterprise Infrastructure v1.1 の学習ノートです。
+
+Cisco CCIE Enterprise Infrastructure v1.1 Blueprint に沿って、
+Network Infrastructure、Software Defined Infrastructure、
+Transport Technologies and Solutions、Security and Services、
+Automation and Programmability、および各種Labを整理しています。
+
+## Contents
+
+### 1. Network Infrastructure
+
+Switched Campus、Routing、EIGRP、OSPF、BGP、Multicastなどの
+ネットワークインフラストラクチャに関する学習ノートです。
+
+### 2. Software Defined Infrastructure
+
+SD-Access、SD-WAN、Programmabilityについて整理しています。
+
+### 3. Transport Technologies and Solutions
+
+GRE、MPLS、L3VPN、DMVPNなどについて整理しています。
+
+### 4. Infrastructure Security and Services
+
+Device Security、Network Security、QoS、Network Services、
+Network Operationsなどについて整理しています。
+
+### 5. Infrastructure Automation and Programmability
+
+Data Encoding、Automation Scripting、Programmabilityについて整理しています。
+
+### Labs
+
+BGP、EIGRP、MPLS、OSPF、SD-WAN、SDA、Security、VRFの
+Hands-on Labを整理しています。学習内容・設定例・試験対策を体系的にまとめたものです。
 
 ---
 
