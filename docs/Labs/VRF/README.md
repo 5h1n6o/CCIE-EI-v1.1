@@ -3,7 +3,7 @@ layout: default
 title: VRF
 parent: Labs
 grand_parent: docs
-nav_order: 1
+nav_order: 4
 ---
 
 # VRF
