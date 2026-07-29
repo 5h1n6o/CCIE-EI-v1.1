@@ -1,7 +1,8 @@
 ---
-layout: default
 title: 4-Infrastructure-Security-and-Services
-nav_order: 1
+parent: CCIE Enterprise Infrastructure v1.1
+nav_order: 2
+layout: default
 ---
 
 # 4-Infrastructure-Security-and-Services
