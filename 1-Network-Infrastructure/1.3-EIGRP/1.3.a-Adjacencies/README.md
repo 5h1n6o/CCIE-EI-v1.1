@@ -1,7 +1,7 @@
-# 2.1-SDA
+# 1.3.a-Adjacencies
 
 ## 概要
-この項目では、CCIE EI v1.1 Blueprint の「2.1-SDA」に関する学習内容をまとめる。
+この項目では、CCIE EI v1.1 Blueprint の「1.3.a-Adjacencies」に関する学習内容をまとめる。
 
 ## 要点
 - 重要ポイントを箇条書きで整理

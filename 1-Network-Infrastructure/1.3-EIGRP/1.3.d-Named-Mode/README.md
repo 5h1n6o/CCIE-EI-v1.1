@@ -1,7 +1,7 @@
-# 2.1-SDA
+# 1.3.d-Named-Mode
 
 ## 概要
-この項目では、CCIE EI v1.1 Blueprint の「2.1-SDA」に関する学習内容をまとめる。
+この項目では、CCIE EI v1.1 Blueprint の「1.3.d-Named-Mode」に関する学習内容をまとめる。
 
 ## 要点
 - 重要ポイントを箇条書きで整理
