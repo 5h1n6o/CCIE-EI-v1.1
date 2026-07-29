@@ -39,7 +39,7 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 | :--- | :--- |  
 | **静的エントリ追加** | `mac address-table static [MAC] vlan [ID] interface [INT]` | 
 | **エージングタイム変更** | `mac address-table aging-time [秒]` |  
-| **テーブル表示** | `show mac address-table [dynamic\|static\|vlan ID]` | 
+| **テーブル表示** | <code>show mac address-table [dynamic&#124;static&#124;vlan ID]</code> | 
 | **テーブル消去** | `clear mac address-table dynamic` |  
 
 ---
@@ -66,7 +66,7 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 
 | 目的 | コマンド |  
 | :--- | :--- | 
-| **原因の有効化** | `errdisable detect cause [all\|原因]` |  
+| **原因の有効化** | <code>errdisable detect cause [all&#124;原因]` |  
 | **自動復旧の有効化** | `errdisable recovery cause [原因]` |  
 | **復旧間隔の設定** | `errdisable recovery interval ` |  
 | **ステータス確認** | `show errdisable recovery` / `show interfaces status err-disabled` |  
