@@ -2,8 +2,7 @@
 layout: default
 title: MPLS
 parent: Labs
-grand_parent: docs
-nav_order: 1
+nav_order: 5
 ---
 
 # MPLS
