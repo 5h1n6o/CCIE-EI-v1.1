@@ -2,7 +2,6 @@
 layout: default
 title: BGP
 parent: Labs
-grand_parent: docs
 nav_order: 1
 ---
 
