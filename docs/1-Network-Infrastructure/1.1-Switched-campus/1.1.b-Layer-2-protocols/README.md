@@ -8,7 +8,7 @@ nav_order: 2
 
 # 1.1.b-Layer-2-protocols
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.b Layer 2 protocols」に関連する CDP, LLDP, および UDLD について、提供されたソース資料に基づき整理しました。
+CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.b Layer 2 protocols」に関連する CDP, LLDP, および UDLD について整理しました。
 
 ---
 
