@@ -2,7 +2,7 @@
 layout: default
 title: 1.4-OSPF
 parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 4
 ---
 
 # 1.4-OSPF
