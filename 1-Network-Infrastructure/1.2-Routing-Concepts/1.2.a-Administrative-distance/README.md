@@ -1,17 +1,16 @@
-# 1.2.a-Administrative-distance
+# 1.2.a Administrative distance
 
-## 概要
-この項目では、CCIE EI v1.1 Blueprint の「1.2.a-Administrative-distance」に関する学習内容をまとめる。
+このページは CCIE Enterprise Infrastructure v1.1 Blueprint の  
+「1.2.a Administrative distance」に対応する学習メモです。
 
-## 要点
-- 重要ポイントを箇条書きで整理
-- プロトコルの動作、構成、制限事項など
-- 試験で問われやすい部分を中心に記載
+## 目的
+この項目では、Blueprint に記載されている技術要素を理解し、  
+設定例・動作・トラブルシューティングを体系的に整理します。
 
-## 試験対策
-- ENCOR / ENARSI / CCIE EI での出題傾向
-- よくあるひっかけポイント
-- 実機で確認すべき内容
+## 内容
+- Blueprint: 1.2.a Administrative distance
+- ディレクトリ: 1-Network-Infrastructure/1.2-Routing-concepts/1.2.a-Administrative-distance
 
-## メモ
-- 学習中に気づいたことを自由に追記
+## 学習メモ
+（ここに内容を追加していきます）
+
