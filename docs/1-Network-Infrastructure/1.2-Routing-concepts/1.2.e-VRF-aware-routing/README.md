@@ -3,7 +3,7 @@ layout: default
 title: 1.2.e-VRF-aware-routing
 parent: 1.2-Routing-concepts
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 5
 ---
 
 # 1.2.e-VRF-aware-routing
