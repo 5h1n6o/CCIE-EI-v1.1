@@ -170,4 +170,6 @@ Switch(config-vlan)# name Extended_VLAN
 *   [BRKENS-1501: Enterprise Campus Wired Design Fundamentals](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-1501)
 *   [BRKENS-2031: Enterprise Campus Design](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-2031)
 
+## 📝 補足
 
+- 補足情報をここに追加してください。
