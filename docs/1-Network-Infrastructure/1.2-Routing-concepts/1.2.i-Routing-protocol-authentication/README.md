@@ -3,7 +3,7 @@ layout: default
 title: 1.2.i-Routing-protocol-authentication
 parent: 1.2-Routing-concepts
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 9
 ---
 
 # 1.2.i-Routing-protocol-authentication
