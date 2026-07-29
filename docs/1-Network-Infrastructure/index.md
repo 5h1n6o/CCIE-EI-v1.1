@@ -1,7 +1,8 @@
 ---
 layout: default
 title: 1-Network-Infrastructure
-nav_order: 1
+has children: true
+nav_order: 2
 ---
 
 # 1-Network-Infrastructure
