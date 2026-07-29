@@ -2,7 +2,7 @@
 layout: default
 title: 1.5-BGP
 parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 5
 ---
 
 # 1.5-BGP
