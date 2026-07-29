@@ -3,6 +3,8 @@ description: CCIE EI v1.1 Blueprint に基づく学習サイト
 
 remote_theme: just-the-docs/just-the-docs
 
+nav_max_depth: 3
+
 url: "https://5h1n6o.github.io/CCIE-EI-v1.1"
 
 
