@@ -2,7 +2,7 @@
 layout: default
 title: 1.3-EIGRP
 parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 3
 ---
 
 # 1.3-EIGRP
