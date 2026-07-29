@@ -8,7 +8,7 @@ nav_order: 1
 
 # 1.1.a-Switch-administration
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch administration」に関する内容を、提供されたソース資料に基づいて表形式で整理しました。
+CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch administration」に関する内容を整理しました。
 
 ---
 
