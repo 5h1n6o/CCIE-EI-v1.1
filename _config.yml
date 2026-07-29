@@ -1,10 +1,19 @@
-title: CCIE Enterprise Infrastructure Study Notes
-description: CCIE EI v1.1 Blueprint に基づく学習サイト
+title: CCIE Enterprise Infrastructure v1.1
+description: CCIE Enterprise Infrastructure v1.1 Study Notes
 
 remote_theme: just-the-docs/just-the-docs
 
-nav_max_depth: 3
+plugins:
+  - jekyll-remote-theme
 
-url: "https://5h1n6o.github.io/CCIE-EI-v1.1"
-baseurl: "/CCIE-EI-v1.1"
-source: docs
+search_enabled: true
+heading_anchors: true
+nav_enabled: true
+
+color_scheme: light
+
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/USERNAME/CCIE-EI-v1.1"
+
+aux_links_new_tab: true
