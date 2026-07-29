@@ -1,9 +1,9 @@
 ---
-layout: default
 title: 2-Software-Defined-Infrastructure
-nav_order: 1
+parent: CCIE Enterprise Infrastructure v1.1
+nav_order: 2
+layout: default
 ---
-
 # 2-Software-Defined-Infrastructure
 
 このページは CCIE Enterprise Infrastructure v1.1 Blueprint の  
