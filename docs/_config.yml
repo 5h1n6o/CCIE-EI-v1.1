@@ -9,13 +9,3 @@ plugins:
 search_enabled: true
 heading_anchors: true
 nav_enabled: true
-
-color_scheme: light
-
-nav_sort: case_insensitive
-
-aux_links:
-  "GitHub Repository":
-    - "https://github.com/5h1n6o/CCIE-EI-v1.1"
-
-aux_links_new_tab: true
