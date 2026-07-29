@@ -3,7 +3,7 @@ layout: default
 title: 1.1.b-Layer-2-protocols
 parent: 1.1-Switched-campus
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 2
 ---
 
 # 1.1.b-Layer-2-protocols
