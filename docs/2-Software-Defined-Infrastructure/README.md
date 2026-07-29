@@ -1,7 +1,7 @@
 ---
 title: 2-Software-Defined-Infrastructure
 parent: CCIE Enterprise Infrastructure v1.1
-nav_order: 2
+nav_order: 3
 layout: default
 ---
 # 2-Software-Defined-Infrastructure
