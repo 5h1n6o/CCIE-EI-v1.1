@@ -7,7 +7,7 @@ nav_order: 1
 # 1.0 Network Infrastructure
 
 ## 1.1 Switched campus
-- [1.1.a Switch administration](1-Network-Infrastructure/1.1-Switched-campus/1.1.a-Switch-administration/)
+- [1.1.a Switch administration](1-Network-Infrastructure/1.1-Switched-campus/1.1.a-Switch-administration/README.md)
 - [1.1.b Layer 2 protocols](1-Network-Infrastructure/1.1-Switched-campus/1.1.b-Layer-2-protocols/)
 - [1.1.c VLAN technologies](1-Network-Infrastructure/1.1-Switched-campus/1.1.c-VLAN-technologies/)
 - [1.1.d EtherChannel](1-Network-Infrastructure/1.1-Switched-campus/1.1.d-EtherChannel/)
