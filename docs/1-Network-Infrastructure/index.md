@@ -1,23 +1,20 @@
 ---
 title: 1. Network Infrastructure
-nav_order: 1
+parent: CCIE Enterprise Infrastructure v1.1
+nav_order: 2
 layout: default
 ---
 
 # 1. Network Infrastructure
 
-This section covers the Network Infrastructure topics of the CCIE Enterprise Infrastructure v1.1 blueprint.
+This section covers Network Infrastructure topics
+for CCIE Enterprise Infrastructure v1.1.
 
 ## Topics
 
-- Switched Campus
-- Routing Concepts
-- EIGRP
-- OSPF
-- BGP
-- Multicast
-  
-# 1-Network-Infrastructure
-
-このページは CCIE Enterprise Infrastructure v1.1 Blueprint の  
-「1-Network-Infrastructure」に対応する学習メモです。
+- 1.1 Switched Campus
+- 1.2 Routing Concepts
+- 1.3 EIGRP
+- 1.4 OSPF
+- 1.5 BGP
+- 1.6 Multicast
