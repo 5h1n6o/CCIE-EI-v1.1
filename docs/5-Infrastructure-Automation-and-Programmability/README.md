@@ -1,7 +1,8 @@
 ---
-layout: default
 title: 5-Infrastructure-Automation-and-Programmability
-nav_order: 1
+parent: CCIE Enterprise Infrastructure v1.1
+nav_order: 2
+layout: default
 ---
 
 # 5-Infrastructure-Automation-and-Programmability
