@@ -2,8 +2,7 @@
 layout: default
 title: OSPF
 parent: Labs
-grand_parent: docs
-nav_order: 1
+nav_order: 2
 ---
 
 # OSPF
