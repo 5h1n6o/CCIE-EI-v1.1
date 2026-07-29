@@ -3,7 +3,7 @@ layout: default
 title: 1.2.h-Redistribution
 parent: 1.2-Routing-concepts
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 8
 ---
 
 # 1.2.h-Redistribution
