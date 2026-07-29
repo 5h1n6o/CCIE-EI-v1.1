@@ -2,7 +2,7 @@
 layout: default
 title: 1.6-Multicast
 parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 6
 ---
 
 # 1.6-Multicast
