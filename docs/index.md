@@ -1,6 +1,7 @@
 ---
 layout: default
 title: CCIE Enterprise Infrastructure v1.1
+has_children: true 
 nav_order: 1
 ---
 
