@@ -3,6 +3,7 @@ layout: default
 title: 1.1-Switched-campus
 parent: 1-Network-Infrastructure
 has children: true
+nav_order: 1
 ---
 
 # 1.1-Switched-campus
