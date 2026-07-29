@@ -1,7 +1,8 @@
 ---
-layout: default
 title: Labs
-nav_order: 1
+parent: CCIE Enterprise Infrastructure v1.1
+nav_order: 6
+layout: default
 ---
 
 # Labs
