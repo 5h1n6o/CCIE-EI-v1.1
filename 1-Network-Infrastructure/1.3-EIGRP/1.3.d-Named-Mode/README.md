@@ -1,17 +1,29 @@
 # 1.3.d-Named-Mode
 
 ## 概要
-この項目では、CCIE EI v1.1 Blueprint の「1.3.d-Named-Mode」に関する学習内容をまとめる。
+Named Mode は Classic Mode の課題を解消し、  
+階層構造（Address-Family / Interface / Topology）で  
+設定の一元管理と Wide Metrics を提供します。
 
 ## 要点
-- 重要ポイントを箇条書きで整理
-- プロトコルの動作、構成、制限事項など
-- 試験で問われやすい部分を中心に記載
+- Classic → Named の進化（階層構造）
+- Address-Family（IPv4/IPv6）
+- af-interface（Hello/Hold/認証）
+- topology base（Active Timer / Variance / Redistribution）
+- Wide Metrics（K6）
+- 認証（MD5 / SHA256）
 
 ## 試験対策
-- ENCOR / ENARSI / CCIE EI での出題傾向
-- よくあるひっかけポイント
-- 実機で確認すべき内容
+- Named Mode の階層構造は暗記レベル
+- Wide Metrics は Named Mode のみ
+- Classic と Named の混在はメトリック不一致の原因
 
-## メモ
-- 学習中に気づいたことを自由に追記
+## 設定例
+```text
+router eigrp EIGRP-NAMED
+ address-family ipv4 unicast autonomous-system 100
+  af-interface default
+   hello-interval 3
+   hold-time 15
+  topology base
+   timers active-time 2
