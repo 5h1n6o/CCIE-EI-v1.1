@@ -8,7 +8,7 @@ nav_order: 2
 
 # 1.2.b Static routing (unicast, multicast)
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.2 Routing concepts」における「1.2.b Static routing (unicast, multicast)」について、提供されたソース資料（iPexpert, INE, Cisco Press等）に基づき、ラボ試験合格に必要な深さで詳細に整理しました。
+CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.2 Routing concepts」における「1.2.b Static routing (unicast, multicast)」について整理しました。
 
 ---
 
