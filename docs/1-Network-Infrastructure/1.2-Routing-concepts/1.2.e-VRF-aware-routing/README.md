@@ -8,8 +8,6 @@ nav_order: 5
 
 # 1.2.e-VRF-aware-routing
 
-# CCIE Enterprise Infrastructure v1.1 学習メモ: 1.2.e VRF-aware routing
-
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.2 Routing concepts」における「1.2.e VRF-aware routing with BGP, EIGRP, OSPF, and static」について整理しました。
 
 ---
