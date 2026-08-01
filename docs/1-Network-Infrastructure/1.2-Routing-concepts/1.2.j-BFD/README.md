@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 10
 ---
 
-1.2.j Bidirectional Forwarding Detection (BFD)
+# 1.2.j Bidirectional Forwarding Detection (BFD)
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.2 Routing concepts」における「1.2.j Bidirectional Forwarding Detection (BFD)」について整理しました。
 
