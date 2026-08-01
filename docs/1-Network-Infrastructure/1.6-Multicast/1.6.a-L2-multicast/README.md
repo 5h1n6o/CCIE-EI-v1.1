@@ -268,9 +268,9 @@ ip pim snooping
 ## 参考リソースリンク
 
 ### 関連動画・スライド (Cisco Live On-Demand Library)
-*   [**BRKIPM-2264: IP Multicast Logic and Troubleshooting**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKIPM-2264)
-*   [**BRKENS-2001: Multicast Primer**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-2001)
-*   [**BRKCCIE-3000: BGP and Multicast for the CCIE Candidates**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCCIE-3000)
+*   [BRKIPM-2264: IP Multicast Logic and Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html?search=BRKIPM-2264)
+*   [BRKENS-2001: Multicast Primer](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-2001)
+*   [BRKCCIE-3000: BGP and Multicast for the CCIE Candidates](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCCIE-3000)
 
 #### Configuration ガイド
 *   [IP Multicast: IGMP Configuration Guide (Cisco IOS XE 17.x)](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/ipmulti_igmp/configuration/xe-17/imc-igmp-xe-17-book.html)
