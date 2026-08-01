@@ -3,7 +3,7 @@ layout: default
 title: 1.3.d-Named-Mode
 parent: 1.3-EIGRP
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 4
 ---
 
 1.3.d EIGRP Named Mode
