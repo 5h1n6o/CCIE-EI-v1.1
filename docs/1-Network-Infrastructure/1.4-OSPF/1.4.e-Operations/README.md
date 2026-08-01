@@ -3,7 +3,7 @@ layout: default
 title: 1.4.e-Operations
 parent: 1.4-OSPF
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 5
 ---
 
 # 1.4.e OSPF Operations
