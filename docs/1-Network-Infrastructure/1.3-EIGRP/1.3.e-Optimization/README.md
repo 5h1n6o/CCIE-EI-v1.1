@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 5
 ---
 
-1.3.e EIGRP Optimization, Convergence, and Scalability
+# 1.3.e EIGRP Optimization, Convergence, and Scalability
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.3 EIGRP」における「1.3.e Optimization, convergence, and scalability」について整理しました。
 
