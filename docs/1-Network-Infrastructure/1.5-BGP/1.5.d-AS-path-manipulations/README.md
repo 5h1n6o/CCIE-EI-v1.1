@@ -3,7 +3,7 @@ layout: default
 title: 1.5.d-AS-path-manipulations
 parent: 1.5-BGP
 grand_parent: 1-Network-Infrastructure
-nav_order: 3
+nav_order: 4
 ---
 
 # 1.5.d AS Path Manipulations
