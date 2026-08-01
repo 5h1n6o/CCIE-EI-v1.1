@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 4
 ---
 
-1.3.d EIGRP Named Mode
+# 1.3.d EIGRP Named Mode
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.3 EIGRP」における「1.3.d EIGRP named mode」について整理しました。
 
