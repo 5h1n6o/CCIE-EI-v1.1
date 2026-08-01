@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 1
 ---
 
-1.3.a EIGRP Adjacencies
+# 1.3.a EIGRP Adjacencies
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.3 EIGRP」における「1.3.a Adjacencies（隣接関係）」について整理しました。
 
