@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 3
 ---
 
-1.4.c OSPF Network Types and Area Types
+# 1.4.c OSPF Network Types and Area Types
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.4 OSPF (v2 and v3)」における「1.4.c Network types, area types」について整理しました。
 
