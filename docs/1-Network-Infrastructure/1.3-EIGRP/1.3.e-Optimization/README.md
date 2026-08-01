@@ -3,7 +3,7 @@ layout: default
 title: 1.3.e-Optimization
 parent: 1.3-EIGRP
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 5
 ---
 
 1.3.e EIGRP Optimization, Convergence, and Scalability
