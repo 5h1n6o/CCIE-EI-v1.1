@@ -3,7 +3,7 @@ layout: default
 title: 1.4.b-OSPFv3-AF-support
 parent: 1.4-OSPF
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 2
 ---
 
 #1.4.b OSPFv3 address family support
