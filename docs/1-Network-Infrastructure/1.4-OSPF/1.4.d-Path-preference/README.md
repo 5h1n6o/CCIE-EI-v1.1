@@ -3,7 +3,7 @@ layout: default
 title: 1.4.d-Path-preference
 parent: 1.4-OSPF
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 4
 ---
 
 # 1.4.d OSPF Path Preference
