@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 1
 ---
 
-1.4.a OSPF Adjacencies
+# 1.4.a OSPF Adjacencies
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.4 OSPF (v2 and v3)」における「1.4.a Adjacencies（隣接関係）」について整理しました。
 
