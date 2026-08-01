@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 2
 ---
 
-1.3.b EIGRP Best Path Selection
+# 1.3.b EIGRP Best Path Selection
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.3 EIGRP」における、パス選定のメカニズム、ディスタンスの概念、およびメトリック計算（Classic vs Wide）について整理しました。
 
