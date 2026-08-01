@@ -151,9 +151,42 @@ interface GigabitEthernet0/0
  ip tcp adjust-mss 1360
 ```
 
+### 4. SD-WAN/VXLAN アンダーレイの Jumbo Frame 構成
+**【問題内容】**
+SD-Access ファブリック内において、VXLAN カプセル化によるフラグメントを防ぐため、すべてのアンダーレイ物理インターフェイスで Jumbo Frame を有効にし、かつMTUの不整合がないか検証せよ。
+
+**【設定サンプル】**
+```ios
+! 全スイッチのグローバル設定
+system mtu 9100
+
+! インターフェイス個別設定
+interface GigabitEthernet1/0/1
+ mtu 9100
+
+! 検証：DFビットを立てて 9000バイトのPingが通るか確認
+Device# ping 10.1.1.2 size 9000 df-bit
+```
+
+### 5. BGP PMTUD と MSS 交渉の検証
+**【問題内容】**
+BGPネイバー 172.16.1.1 への接続において、PMTUDを有効化し、SYNパケットで広告されるMSSを確認せよ。
+
+**【設定サンプル】**
+```ios
+router bgp 65001
+ neighbor 172.16.1.1 remote-as 65002
+ ! ネイバー単位でのPMTUD有効化
+ neighbor 172.16.1.1 transport path-mtu-discovery
+
+! 検証
+Device# debug ip tcp transaction
+! "TCP: pmtu enabled, mss is now set to 1460" (MTU1500時) などの出力を確認
+```
+
 ---
 
-### 4. IPv6 環境での MTU 管理
+### 6. IPv6 環境での MTU 管理
 
 **【問題内容】**
 IPv6ネットワークにおいて、リンクMTUが異なるセグメント間で通信を最適化せよ。
