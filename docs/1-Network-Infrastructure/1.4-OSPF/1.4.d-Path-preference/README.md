@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 1
 ---
 
-1.4.d OSPF Path Preference
+# 1.4.d OSPF Path Preference
 
 CCIE Enterprise Infrastructure (EI) v1.1 の Blueprint 項目「1.4 OSPF (v2 and v3)」における「1.4.d Path preference（パス選定の優先順位）」について整理しました。
 
