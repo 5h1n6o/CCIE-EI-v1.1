@@ -6,7 +6,7 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 1
 ---
 
-1.4.e OSPF Operations
+# 1.4.e OSPF Operations
 
 CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.4 OSPF (v2 and v3)」における「1.4.e Operations（運用・動作）」について整理しました。
 
