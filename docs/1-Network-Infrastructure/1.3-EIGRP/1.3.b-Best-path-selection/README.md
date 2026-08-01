@@ -3,7 +3,7 @@ layout: default
 title: 1.3.b-Best-path-selection
 parent: 1.3-EIGRP
 grand_parent: 1-Network-Infrastructure
-nav_order: 1
+nav_order: 2
 ---
 
 1.3.b EIGRP Best Path Selection
