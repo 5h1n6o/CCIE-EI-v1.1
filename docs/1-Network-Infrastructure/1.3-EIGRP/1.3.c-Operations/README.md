@@ -316,14 +316,8 @@ router eigrp 100
 *   [EIGRP Stub Router Functionality (White Paper)](https://www.cisco.com/en/US/technologies/tk648/tk365/technologies_white_paper0900aecd8023df6f.html)
 *   [Introduction to EIGRP Metrics](http://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/16406-eigrp-metrics.html) - 計算式の詳細。
 
-### 推奨ラボ Workbook 参照セクション
-*   **INE CCIE Routing & Switching v5 Workbook**: "EIGRP" セクション全般（Stub, Summarization, Filtering）。
-*   **iPexpert CCIE R&S Workbook Vol.1**: Lab 11, 12, 13 - EIGRPの基礎から高度な制御まで。
-*   **CCIE Enterprise Infrastructure Foundation (Narbik Kocharians)**: Chapter 4: EIGRP Labs。
-
 ---
-この学習メモは、EIGRPの単なる設定ではなく、「なぜそのように動くのか」という内部アルゴリズムとパケットの役割に焦点を当てています。特に **SIAの防止策（集約とStub）**、および **FC条件を考慮したパス操作** は、CCIE EIラボ試験で最も配点の高い、そして落としやすいポイントであるため、実機（EVE-NG/VIRL）での繰り返し検証が強く推奨されます。
 
 ## 📝 補足
-- 補足情報をここに追加してください。
+- この学習メモは、EIGRPの単なる設定ではなく、「なぜそのように動くのか」という内部アルゴリズムとパケットの役割に焦点を当てています。特に **SIAの防止策（集約とStub）**、および **FC条件を考慮したパス操作** は、CCIE EIラボ試験で最も配点の高い、そして落としやすいポイントであるため、実機（EVE-NG/VIRL）での繰り返し検証が強く推奨されます。
 
