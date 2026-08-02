@@ -3,7 +3,7 @@ layout: default
 title: 2.2.c-OMP
 parent: 2.2-SD-WAN
 grand_parent: 2-Software-Defined-Infrastructure
-nav_order: 1
+nav_order: 3
 ---
 
 # 2.2.c Overlay Management Protocol (OMP)
