@@ -2,7 +2,7 @@
 layout: default
 title: 4.4-QoS
 parent: 4-Infrastructure-Security-and-Services
-nav_order: 1
+nav_order: 4
 ---
 
 # 4.4-QoS
