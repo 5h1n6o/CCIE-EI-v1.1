@@ -3,7 +3,7 @@ layout: default
 title: 2.1.d-Fabric-deployment
 parent: 2.1-SD-Access
 grand_parent: 2-Software-Defined-Infrastructure
-nav_order: 1
+nav_order: 4
 ---
 
 # 2.1.d Cisco SD-Access Fabric Deployment
