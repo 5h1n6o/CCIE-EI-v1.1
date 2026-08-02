@@ -6,9 +6,7 @@ grand_parent: 4-Infrastructure-Security-and-Services
 nav_order: 7
 ---
 
-# 4.4.g-HQoS
-
-# CCIE Enterprise Infrastructure v1.1 学習メモ: 4.4.g HQoS (Hierarchical Quality of Service)
+# 4.4.g HQoS (Hierarchical Quality of Service)
 
 本ページでは、Cisco IOS XE における高度な QoS 設計手法である **Hierarchical Quality of Service (HQoS)** について、CCIE Enterprise Infrastructure (EI) v1.1 の試験範囲に基づき詳述します。HQoS は、物理ポートの速度と実際の契約帯域が異なる環境（Sub-rate リンク）や、多層的なトラフィック制御が求められるシナリオにおいて不可欠な技術です。
 
