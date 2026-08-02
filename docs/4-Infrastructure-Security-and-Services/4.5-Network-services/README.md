@@ -2,7 +2,7 @@
 layout: default
 title: 4.5-Network-services
 parent: 4-Infrastructure-Security-and-Services
-nav_order: 1
+nav_order: 6
 ---
 
 # 4.5-Network-services
