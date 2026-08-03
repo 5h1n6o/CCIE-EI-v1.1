@@ -2,7 +2,7 @@
 layout: default
 title: 5.2-Automation-scripting
 parent: 5-Infrastructure-Automation-and-Programmability
-nav_order: 1
+nav_order: 2
 ---
 
 # 5.2-Automation-scripting
