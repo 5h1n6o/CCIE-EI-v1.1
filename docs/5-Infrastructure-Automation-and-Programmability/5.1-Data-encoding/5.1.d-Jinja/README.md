@@ -103,6 +103,8 @@ CCIE EI レベルの複雑なインフラ構成を想定した、実戦的な 12
 ### 1. ホスト名とバナーの基本設定
 
 **【要件】** デバイス名と警告メッセージを変数から生成せよ。
+{% raw %}
+
 ```jinja2
 hostname {{ hostname }}
 !
@@ -247,6 +249,8 @@ interface {{ port }}
 interface Port-channel {{ pc_id }}
  ip address {{ pc_ip }} {{ pc_mask }}
 ```
+
+{% endraw %}
 
 ---
 
