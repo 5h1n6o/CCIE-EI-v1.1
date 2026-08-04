@@ -100,8 +100,6 @@ Jinja2 自体はデバイスのコマンドではありませんが、自動化�
 
 ## 🧪 ラボ学習・設定サンプル例
 
-CCIE EI レベルの複雑なインフラ構成を想定した、実戦的な 12 の Jinja2 テンプレート例です。
-
 ### 1. ホスト名とバナーの基本設定
 
 **【要件】** デバイス名と警告メッセージを変数から生成せよ。
@@ -141,4 +139,45 @@ interface {{ int_name }}
  switchport access vlan {{ vlan_id }}
 {% endif -%}
  no shutdown
+```
+
+
+### 4. BGP ネイバーの動的生成（複雑な辞書）
+
+**【要件】** 複数のネイバーと AS 番号をループで構成せよ。
+```jinja2
+router bgp {{ local_as }}
+ bgp router-id {{ loopback0_ip }}
+{% for neighbor in bgp_neighbors -%}
+ neighbor {{ neighbor.ip }} remote-as {{ neighbor.as }}
+ neighbor {{ neighbor.ip }} description {{ neighbor.desc }}
+{% endfor -%}
+```
+
+### 5. OSPF エリアとネットワークの階層構成
+
+**【要件】** エリアごとに定義されたネットワークを構成せよ。
+```jinja2
+router ospf {{ process_id }}
+{% for area in ospf_areas %}
+ ! Area {{ area.id }} Configuration
+ {% for net in area.networks -%}
+ network {{ net.network }} {{ net.wildcard }} area {{ area.id }}
+ {% endfor %}
+{% endfor %}
+```
+
+### 6. VRF 定義とインターフェイスへの紐付け
+
+**【要件】** VRF リストを読み込み、定義と IF 適用を同時に行え。
+```jinja2
+{% for vrf in vrfs -%}
+vrf definition {{ vrf.name }}
+ address-family ipv4
+ exit-address-family
+!
+interface {{ vrf.interface }}
+ vrf forwarding {{ vrf.name }}
+ ip address {{ vrf.ip }} {{ vrf.mask }}
+{% endfor %}
 ```
