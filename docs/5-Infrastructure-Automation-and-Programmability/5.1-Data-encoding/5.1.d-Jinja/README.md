@@ -216,18 +216,6 @@ ntp server {{ server | lower }}
 {% endfor %}
 ```
 
-### 10. HSRP 冗長構成テンプレート
-
-**【要件】** インターフェイスごとに異なる HSRP グループと VIP を構成せよ。
-```jinja2
-interface {{ interface }}
- standby {{ group }} ip {{ virtual_ip }}
- standby {{ group }} priority {{ priority }}
- {% if is_primary -%}
- standby {{ group }} preempt
- {% endif -%}
-```
-
 ---
 
 ## 🔗 参考リソース
