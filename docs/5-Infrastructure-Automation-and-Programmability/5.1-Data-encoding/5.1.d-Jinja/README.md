@@ -216,4 +216,25 @@ ntp server {{ server | lower }}
 {% endfor %}
 ```
 
+### 10. HSRP 冗長構成テンプレート
+
+**【要件】** インターフェイスごとに異なる HSRP グループと VIP を構成せよ。
+```jinja2
+interface {{ interface }}
+ standby {{ group }} ip {{ virtual_ip }}
+ standby {{ group }} priority {{ priority }}
+ {% if is_primary -%}
+ standby {{ group }} preempt
+ {% endif -%}
+```
+
+### 11. AAA サーバー設定の外部ファイル読み込み（Include）
+
+**【要件】** 標準的な AAA ヘッダーを別のテンプレートファイルから読み込め。
+```jinja2
+{% include 'standard_aaa_header.j2' %}
+!
+radius-server host {{ radius_ip }} key {{ radius_key }}
+```
+---
 
