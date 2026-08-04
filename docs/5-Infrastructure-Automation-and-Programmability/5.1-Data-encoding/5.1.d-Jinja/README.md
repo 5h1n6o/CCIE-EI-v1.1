@@ -5,6 +5,7 @@ parent: 5.1-Data-encoding
 grand_parent: 5-Infrastructure-Automation-and-Programmability
 nav_order: 4
 ---
+
 {% raw %}
 
 # 5.1.d Jinja
