@@ -98,4 +98,47 @@ Jinja2 自体はデバイスのコマンドではありませんが、自動化�
 
 ---
 
+## 🧪 ラボ学習・設定サンプル例
 
+CCIE EI レベルの複雑なインフラ構成を想定した、実戦的な 12 の Jinja2 テンプレート例です。
+
+### 1. ホスト名とバナーの基本設定
+
+**【要件】** デバイス名と警告メッセージを変数から生成せよ。
+
+```jinja2
+hostname {{ hostname }}
+!
+banner motd ^C
+*****************************************
+  Unauthorized access to {{ hostname }} 
+  is strictly prohibited.
+*****************************************
+^C
+```
+
+### 2. VLAN の一括生成（Forループ）
+
+**【要件】** リスト `vlan_list` に含まれる全ての VLAN を生成せよ。
+```jinja2
+{% for vlan in vlan_list -%}
+vlan {{ vlan.id }}
+ name {{ vlan.name }}
+{% endfor %}
+```
+
+### 3. インターフェイスの条件付き設定（If分岐）
+
+**【要件】** `is_trunk` が true の場合のみトランク設定を、それ以外はアクセス設定を出力せよ。
+```jinja2
+interface {{ int_name }}
+ description Connected to {{ peer_name }}
+{% if is_trunk -%}
+ switchport mode trunk
+ switchport trunk allowed vlan all
+{% else -%}
+ switchport mode access
+ switchport access vlan {{ vlan_id }}
+{% endif -%}
+ no shutdown
+```
