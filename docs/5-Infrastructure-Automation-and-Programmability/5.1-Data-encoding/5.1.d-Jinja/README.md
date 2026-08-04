@@ -5,6 +5,7 @@ parent: 5.1-Data-encoding
 grand_parent: 5-Infrastructure-Automation-and-Programmability
 nav_order: 4
 ---
+{% raw %}
 
 # 5.1.d Jinja
 
@@ -103,7 +104,7 @@ CCIE EI レベルの複雑なインフラ構成を想定した、実戦的な 12
 ### 1. ホスト名とバナーの基本設定
 
 **【要件】** デバイス名と警告メッセージを変数から生成せよ。
-{% raw %}
+
 
 ```jinja2
 hostname {{ hostname }}
@@ -250,7 +251,6 @@ interface Port-channel {{ pc_id }}
  ip address {{ pc_ip }} {{ pc_mask }}
 ```
 
-{% endraw %}
 
 ---
 
@@ -276,4 +276,4 @@ interface Port-channel {{ pc_id }}
 
 - この学習メモは、CCIE EI ラボ試験において **「単なるコマンドの暗記ではなく、インフラ構成をいかに論理的に抽象化し、自動化のフローに乗せられるか」** を問う Jinja2 の重要性を網羅しています。実技試験では、テンプレート内の 1 文字のミス（例：`{% endfor %}` の欠落）が設定全体の失敗に繋がるため、構文の正確性を常に意識して演習を繰り返してください。
 
-
+{% endraw %}
