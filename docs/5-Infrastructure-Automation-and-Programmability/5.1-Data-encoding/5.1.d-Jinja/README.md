@@ -181,3 +181,39 @@ interface {{ vrf.interface }}
  ip address {{ vrf.ip }} {{ vrf.mask }}
 {% endfor %}
 ```
+
+### 7. スタティックルートのリスト生成
+
+**【要件】** 宛先、マスク、ネクストホップのリストからルートを生成せよ。
+```jinja2
+{% for route in static_routes -%}
+ip route {{ route.dest }} {{ route.mask }} {{ route.next_hop }}
+{% endfor %}
+```
+
+### 8. QoS Class-map と Policy-map
+
+**【要件】** クラス名と DSCP 値のペアから QoS ポリシーを構築せよ。
+```jinja2
+{% for class in qos_classes -%}
+class-map match-any CM-{{ class.name }}
+ match ip dscp {{ class.dscp }}
+{% endfor %}
+!
+policy-map PM-OUT
+{% for class in qos_classes -%}
+ class CM-{{ class.name }}
+  bandwidth percent {{ class.bw_percent }}
+{% endfor %}
+```
+
+### 9. NTP サーバーリストの正規化（Filter利用）
+
+**【要件】** 大文字小文字が混在するサーバー名を小文字にして設定せよ。
+```jinja2
+{% for server in ntp_servers -%}
+ntp server {{ server | lower }}
+{% endfor %}
+```
+
+
