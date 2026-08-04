@@ -237,21 +237,6 @@ interface {{ interface }}
 !
 radius-server host {{ radius_ip }} key {{ radius_key }}
 ```
-
-### 12. EtherChannel のメンバーシップ構成
-
-**【要件】** リストに指定されたポート群を Channel-group にまとめよ。
-```jinja2
-{% for port in port_channel_members -%}
-interface {{ port }}
- channel-group {{ pc_id }} mode active
-!
-{% endfor %}
-interface Port-channel {{ pc_id }}
- ip address {{ pc_ip }} {{ pc_mask }}
-```
-
-
 ---
 
 ## 🔗 参考リソース
