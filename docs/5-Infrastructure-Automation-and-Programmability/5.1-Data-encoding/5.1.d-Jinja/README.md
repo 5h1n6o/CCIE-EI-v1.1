@@ -98,6 +98,24 @@ Jinja2 自体はデバイスのコマンドではありませんが、自動化�
 
 ---
 
+## 🔗 参考リソース
+
+### Cisco Live (動画・スライド)
+*   [**BRKCRT-1385: The CCIE in an SDN World - Programmability Section**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRT-1385)
+    *   CCIE EI 試験における Jinja2 を含む自動化ツールの位置付け。
+*   [**BRKOPS-2431: Network Automation in Theory and Practice**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKOPS-2431)
+    *   YANG モデルと Jinja2 テンプレートの連携に関する詳細。
+
+### Configuration ガイド
+*   [**Cisco IOS XE 17.x: Programmability Configuration Guide**](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/prog/configuration/17/b_17_prog_cg.html)
+*   [**Ansible Template Module Documentation**](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html)
+
+### テクニカルドキュメント・設定例
+*   [**Jinja2 Official Documentation (Template Designer Provost)**](https://jinja.palletsprojects.com/)
+*   [**Cisco DevNet: Render your first network configuration template using Python and Jinja2**](https://developer.cisco.com/learning/modules/intro-python-jinja2)
+
+---
+
 ## 🧪 ラボ学習・設定サンプル例
 
 ### 1. ホスト名とバナーの基本設定
