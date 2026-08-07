@@ -309,8 +309,8 @@ router eigrp 100
 *   [EIGRP Named Mode Configuration Case Study](https://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/200156-Configure-EIGRP-Named-Mode.html)
 
 ### CiscoLive (動画・スライド)
-*   [BRKCCIE-3000: BGP and EIGRP for the CCIE Candidates](https://www.ciscolive.com/global/on-demand-library.html) - EIGRPのDUALと高速コンバージェンスの深い解説。
-*   [BRKRST-3320: Troubleshooting Routing Protocols](https://www.ciscolive.com/global/on-demand-library.html?search=BRKRST-3320) - EIGRPのトラブルシューティング手法。
+*   [Introduction to EIGRP - BRKENT-1187](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2024/pdf/BRKENT-1187.pdf) - EIGRPの基礎と概要を解説
+*   [EIGRP Operations: The Usual Suspects - BRKENT-2050](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2025/pdf/BRKENT-2050.pdf) - EIGRPの動作原理やトラブルシューティングを解説。
 
 ### テクニカルドキュメント・設定例
 *   [EIGRP Stub Router Functionality (White Paper)](https://www.cisco.com/en/US/technologies/tk648/tk365/technologies_white_paper0900aecd8023df6f.html)
