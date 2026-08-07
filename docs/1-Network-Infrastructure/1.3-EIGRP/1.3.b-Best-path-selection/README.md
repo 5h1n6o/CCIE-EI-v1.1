@@ -196,8 +196,8 @@ interface Serial0/0
 *   [EIGRP Wide Metrics (White Paper)](https://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/118847-tech-note-eigrp-00.html)
 
 ### CiscoLive (動画・スライド)
-*   [BRKCCIE-3000: EIGRP for CCIE Candidates (Narbik Kochariansによる深掘り)](https://www.ciscolive.com/global/on-demand-library.html)
-*   [BRKRST-3320: Troubleshooting Routing Protocols (EIGRPメトリック不整合)](https://www.ciscolive.com/global/on-demand-library.html?search=BRKRST-3320)
+*   [Introduction to EIGRP - BRKENT-1187](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2024/pdf/BRKENT-1187.pdf) - EIGRPの基礎と概要を解説
+*   [EIGRP Operations: The Usual Suspects - BRKENT-2050](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2025/pdf/BRKENT-2050.pdf) - EIGRPの動作原理やトラブルシューティングを解説。
 
 ### テクニカルドキュメント・設定例
 *   [Introduction to EIGRP Metrics](http://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/16406-eigrp-metrics.html)
