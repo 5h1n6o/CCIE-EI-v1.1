@@ -312,9 +312,10 @@ router eigrp CCIE_FABRIC
 *   [EIGRP Wide Metrics White Paper (Technical Note)](https://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/118847-tech-note-eigrp-00.html)
 
 ### CiscoLive (動画・スライド)
-*   [BRKCCIE-3000: BGP and EIGRP for the CCIE Candidates](https://www.ciscolive.com/global/on-demand-library.html) - EIGRPのDUALとNamed Modeの深い技術解説。
-*   [BRKRST-3320: Troubleshooting Routing Protocols](https://www.ciscolive.com/global/on-demand-library.html?search=BRKRST-3320) - 移行（Migration）時のトラブルシュート事例。
+*   [Introduction to EIGRP - BRKENT-1187](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2024/pdf/BRKENT-1187.pdf) - EIGRPの基礎と概要を解説。
+*   [EIGRP Operations: The Usual Suspects - BRKENT-2050](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2025/pdf/BRKENT-2050.pdf) - EIGRPの動作原理やトラブルシューティングを解説。
 
+*   
 ### テクニカルドキュメント・設定例
 *   [EIGRP Named Mode Configuration Example (Cisco Support)](https://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/200156-Configure-EIGRP-Named-Mode.html)。
 *   [Understanding EIGRP SHA-256 Authentication](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_eigrp/configuration/15-mt/ire-15-mt-book/ire-sha256.html)。
