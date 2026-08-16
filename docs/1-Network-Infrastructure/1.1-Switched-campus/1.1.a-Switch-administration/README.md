@@ -28,6 +28,18 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 | **静的登録** | 手動でMACとポートを紐付け、エージングによる削除を防止する。 |  
 | **通知機能** | 追加、削除、移動、またはしきい値超過をSNMPトラップで通知可能。 | 
 
+### MAC テーブル動作に影響する設計ポイント
+
+- Access レイヤは「ブロードキャスト抑制」「IGMP スヌーピング」により不要なフラッディングを削減する。
+- Distribution レイヤは「Layer 2 境界」「ブロードキャスト境界」として MAC テーブルの肥大化を防ぐ。
+- Routed Access（L3 アクセス）を採用すると、アップリンクで MAC 学習が発生しなくなり、MAC テーブルが安定する。
+- StackWise Virtual / VSS により STP ブロックポートがなくなり、MAC 学習がより安定する。
+
+### CCIE-EI で重要な理由
+- L2 ドメインを小さくすると MAC テーブルが小さくなり、収束が速くなる。
+- ブロードキャスト境界は MAC テーブルの揺らぎ（MAC churn）を抑制する。
+- Routed Access は MAC テーブルの不安定要因を大幅に減らす。
+
 ### 🎯 試験対策 (CCIE EIレベル)
 
 *   **CAMの構造理解**: CAMはバイナリ結果（0または1）を高速で検索する高機能メモリであることを理解しておく。
@@ -158,6 +170,21 @@ Switch1# show mac-address-table learning
 | **自動復旧の仕組み** | `errdisable recovery` により、管理者の介入なしに設定間隔後に再アクティブ化。 |  
 | **デフォルト間隔** | 300秒。最短30秒などの調整が可能。 | 
 
+### Errdisable の主な原因
+- BPDU Guard 違反
+- RootGuard / LoopGuard の検出
+- UDLD Aggressive モード（両端を err-disable）
+- Port-security 違反
+- Access レイヤの L2 ループ
+- トランク設定ミス（DTP）
+- EtherChannel 設定ミス（PAgP / LACP）
+
+### CCIE-EI で重要な理由
+- UDLD / BPDU Guard / link-flap などは Errdisable recovery の対象にすべき。
+- Access レイヤのハードニングが Errdisable 発生を大幅に減らす。
+- Routed Access は STP 関連の Errdisable トリガーをほぼ排除できる。
+
+
 ### 🎯 試験対策 (CCIE EIレベル)
 
 *   **迅速な復旧要件**: ラボ試験で「特定の違反（BPDUガード等）によるダウンから、規定時間内に自動復旧させよ」というタスクに対応できるよう、原因（cause）の指定とインターバル（interval）の設定をセットで覚える。
@@ -167,6 +194,7 @@ Switch1# show mac-address-table learning
 *   Link-flap は Layer1 問題（ケーブル・SFP・NIC）
 *   Port-security violation は shutdown モードがデフォルト
 *   L2PT Guard は トンネルポートで PDU を受信すると errdisable
+
 
 ### 🛠 設定・検証コマンド
 
@@ -293,6 +321,16 @@ Switch1(config)# errdisable recovery cause l2ptguard
 | **不一致の影響** | OSPFの隣接関係が `EXSTART` で止まるなどのルーティング問題を引き起こす。 |  
 | **設定レベル** | プラットフォームにより、システム全体での設定や個別ポート設定がある。 |  
 
+### MTU に関する重要ベストプラクティス
+- 重要なインターフェイスでは `carrier-delay msec 0` を設定し、最速のリンクダウン検出を実現する。
+- L3 ルーティッドインターフェイスは L2 SVI より収束が速い（約 8ms vs 150–200ms）。
+- L2 集約ポイントは避け、可能な限りポイントツーポイント接続を使うことで MTU 動作が安定する。
+
+### CCIE-EI で重要な理由
+- L2/L3 混在設計では MTU ミスマッチが起きやすい。
+- Routed Access は MTU に起因する STP/SVI の遅延を排除できる。
+- 高速収束を求めるキャンパス設計では MTU 調整が必須。
+   
 ### 🎯 試験対策 (CCIE EIレベル)
 
 *   **MTU不一致の特定**: 物理的な疎通はあるが特定プロトコルが動作しない場合、`show vlan mtu` で不一致（Mismatch）がないか確認する。
