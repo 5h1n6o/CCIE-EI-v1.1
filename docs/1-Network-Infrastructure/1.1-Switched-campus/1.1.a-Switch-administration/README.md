@@ -108,8 +108,8 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 
 ### Configurationガイド
 
-*   [Managing MAC Address Table (Catalyst 9300 / IOS XE 17.x)](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg/m_mac_addr_table.html)
-*   [Configuring System MTU (Catalyst 9300 / IOS XE 17.x)](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/int_hw/b_179_int_hw_9300_cg/configuring_system_mtu.html)
+*   [Managing MAC Address Table ](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_0110.html#topic_8B3F5E7D86EB4448B449DFE9EC9A4751)
+*   [Configuring System MTU](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_010000.html)
 *   [Errdisable Recoveryのトラブルシューティングと設定](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/69980-errdisable-recovery.html)
 
 ### CiscoLive (動画・スライド)
