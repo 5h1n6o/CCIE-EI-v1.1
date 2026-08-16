@@ -114,9 +114,8 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 
 ### CiscoLive (動画・スライド)
 
-*   [BRKENS-1501: Enterprise Campus Wired Design Fundamentals](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-1501)
-*   [BRKENS-2031: Enterprise Campus Design](https://www.ciscolive.com/global/on-demand-library.html?search=BRKENS-2031)
-*   [BRKCCIE-3000: BGP is your Friend – BGP for the CCIE Candidates (MTU/PMTUD関連含む)](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCCIE-3000)
+*   [BRKENS-1501: Enterprise Campus Wired Design Fundamentals](https://www.ciscolive.com/on-demand/on-demand-library.html?search=switches%20campus#/session/1675722366620001tcWQ)
+*   [BRKENS-2031: Enterprise Campus Design](https://www.ciscolive.com/on-demand/on-demand-library.html?search=switches%20campus#/session/1675722366753001tPaF)
 
 ## 📝 補足
 
