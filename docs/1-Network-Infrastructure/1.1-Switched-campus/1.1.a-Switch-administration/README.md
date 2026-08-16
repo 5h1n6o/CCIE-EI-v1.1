@@ -119,5 +119,104 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 
 ## 📝 補足
 
-- 補足情報をここに追加してください。
+### コマンド例
+```
+# ===============================
+# MAC Address Table Configuration
+# ===============================
 
+## MAC アドレステーブルのエージングタイム設定
+Switch1(config)# mac address-table aging-time 500 vlan 2
+
+## 動的 MAC アドレスの削除（全削除）
+Switch1# clear mac address-table dynamic
+
+## 動的 MAC アドレスの削除（MAC 指定）
+Switch1# clear mac address-table dynamic address c2f3.220a.12f4
+
+## 動的 MAC アドレスの削除（インターフェイス指定）
+Switch1# clear mac address-table dynamic interface gigabitethernet1/0/1
+
+## 動的 MAC アドレスの削除（VLAN 指定）
+Switch1# clear mac address-table dynamic vlan 4
+
+## 動的 MAC アドレスの表示
+Switch1# show mac address-table dynamic
+
+# ===============================
+# MAC Notification (SNMP Traps)
+# ===============================
+
+## MAC アドレス変更通知トラップ（Change Notification）
+Switch1(config)# ! SNMP Trap の送信先を設定
+Switch1(config)# snmp-server host 172.20.10.10 traps private mac-notification
+
+Switch1(config)# ! MAC 変更通知トラップを有効化
+Switch1(config)# snmp-server enable traps mac-notification change
+
+Switch1(config)# ! MAC アドレス変更通知を有効化
+Switch1(config)# mac address-table notification change
+
+Switch1(config)# ! 通知間隔を 123 秒に設定
+Switch1(config)# mac address-table notification change interval 123
+
+Switch1(config)# ! 通知履歴サイズを 100 に設定
+Switch1(config)# mac address-table notification change history-size 100
+
+Switch1(config-if)# ! 特定インターフェイスで MAC 追加通知を有効化
+Switch1(config-if)# snmp trap mac-notification change added
+
+
+## MAC アドレス移動通知トラップ（MAC Move）
+Switch1(config)# ! SNMP Trap の送信先を設定
+Switch1(config)# snmp-server host 172.20.10.10 traps private mac-notification
+
+Switch1(config)# ! MAC 移動通知トラップを有効化
+Switch1(config)# snmp-server enable traps mac-notification move
+
+Switch1(config)# ! MAC 移動通知を有効化
+Switch1(config)# mac address-table notification mac-move
+
+
+## MAC アドレス閾値通知トラップ（Threshold）
+Switch1(config)# ! SNMP Trap の送信先を設定
+Switch1(config)# snmp-server host 172.20.10.10 traps private mac-notification
+
+Switch1(config)# ! MAC 閾値通知トラップを有効化
+Switch1(config)# snmp-server enable traps mac-notification threshold
+
+Switch1(config)# ! MAC 閾値通知を有効化
+Switch1(config)# mac address-table notification threshold
+
+Switch1(config)# ! 通知間隔を 123 秒に設定
+Switch1(config)# mac address-table notification threshold interval 123
+
+Switch1(config)# ! 閾値を 78 に設定
+Switch1(config)# mac address-table notification threshold limit 78
+
+
+# ===============================
+# Static MAC Address Configuration
+# ===============================
+
+## 静的 MAC アドレスの設定（インターフェイスへ割り当て）
+Switch1(config)# ! VLAN 4 の静的 MAC を Gi1/1/1 に設定
+Switch1(config)# mac address-table static c2f3.220a.12f4 vlan 4 interface gigabitethernet1/1/1
+
+## 静的 MAC アドレスのドロップ設定（フィルタ）
+Switch1(config)# ! VLAN 4 の指定 MAC をドロップ
+Switch1(config)# mac address-table static c2f3.220a.12f4 vlan 4 drop
+
+
+# ===============================
+# MAC Learning Control
+# ===============================
+
+## VLAN の MAC 学習を無効化
+Switch1(config)# ! VLAN 200 の MAC 学習を無効化
+Switch1(config)# no mac address-table learning vlan 200
+
+## MAC 学習状態の確認
+Switch1# ! MAC 学習状態の確認
+Switch1# show mac-address-table learning
+```
