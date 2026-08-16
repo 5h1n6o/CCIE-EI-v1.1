@@ -119,8 +119,8 @@ CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.1.a Switch admini
 
 ## 📝 補足
 
-### コマンド例
-```
+### MACアドレス関連コマンド例
+```md
 # ===============================
 # MAC Address Table Configuration
 # ===============================
@@ -219,4 +219,89 @@ Switch1(config)# no mac address-table learning vlan 200
 ## MAC 学習状態の確認
 Switch1# ! MAC 学習状態の確認
 Switch1# show mac-address-table learning
+```
+
+---
+
+### **MTU関連補足**
+
+#### IOS15.2 と IOS-XE17.9の比較
+
+| 項目 | IOS15.2 | IOS-XE17.9 |
+| --- | --- | --- |
+| system mtu 反映 | **reload 必要** | **即時反映（reload 不要）** |
+| per‑interface MTU | 不可 | **可能（ip mtu / ipv6 mtu）** |
+| IPv6 MTU 下限 | 1280 未満も可 | **1280 固定（RFC 8200）** |
+| Jumbo MTU | 9000 | **9198** |
+| MTU 保存場所 | NVRAM環境変数 | **running-config に保存** |
+| OSPF MTU mismatch | 起きにくい | **起きやすい（L3 MTU 個別設定のため）** |
+
+
+---
+
+### 📘 **MTU関連コマンド例**
+
+```md
+# ===============================
+# System MTU Configuration (IOS 15.2)
+# ===============================
+
+## FastEthernet のシステム MTU を 1900 bytes に設定
+Switch1(config)# ! FastEthernet の MTU を 1900 に設定
+Switch1(config)# system mtu 1900
+
+## Gigabit/10G の Jumbo MTU を 7500 bytes に設定
+Switch1(config)# ! ギガビット/10G の Jumbo MTU を 7500 に設定
+Switch1(config)# system mtu jumbo 7500
+
+## L3 ポートのルーティング MTU を 2000 bytes に設定
+Switch1(config)# ! ルーティング MTU を 2000 に設定（再起動不要）
+Switch1(config)# system mtu routing 2000
+
+## MTU 設定の確認
+Switch1# ! 現在の MTU 設定を確認
+Switch1# show system mtu
+
+## MTU 設定反映のための reload
+Switch1# ! system mtu / jumbo 設定反映のため reload
+Switch1# reload
+
+## 範囲外の Jumbo MTU 設定例（エラー）
+Switch1(config)# ! Jumbo MTU に 25000 を設定しようとしてエラー
+Switch1(config)# system mtu jumbo 25000
+^
+% Invalid input detected at '^' marker.
+```
+
+```md
+# ===============================
+# Catalyst 9300 MTU Configuration (IOS-XE 17.9.x)
+# ===============================
+
+## システム MTU を 1500 に設定（即時反映）
+Switch1(config)# ! システム MTU を 1500 に設定
+Switch1(config)# system mtu 1500
+
+## Jumbo MTU を 9198 に設定（即時反映）
+Switch1(config)# ! Jumbo MTU を 9198 に設定
+Switch1(config)# system mtu jumbo 9198
+
+## L2 インターフェイス MTU を 9000 に設定
+Switch1(config)# ! L2 インターフェイスの MTU を 9000 に設定
+Switch1(config)# interface GigabitEthernet1/0/1
+Switch1(config-if)# mtu 9000
+
+## L3 インターフェイスの IPv4 MTU を 1500 に設定
+Switch1(config)# ! L3 IPv4 MTU を 1500 に設定
+Switch1(config)# interface GigabitEthernet1/0/1
+Switch1(config-if)# ip mtu 1500
+
+## L3 インターフェイスの IPv6 MTU を 1500 に設定
+Switch1(config)# ! L3 IPv6 MTU を 1500 に設定
+Switch1(config)# interface GigabitEthernet1/0/1
+Switch1(config-if)# ipv6 mtu 1500
+
+## MTU 設定の確認
+Switch1# ! MTU 設定を確認
+Switch1# show system mtu
 ```
