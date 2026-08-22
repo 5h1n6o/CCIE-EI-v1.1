@@ -293,7 +293,7 @@ interface GigabitEthernet1/0/1
 
 ### 2. MTUの概念：L2 MTU (System MTU) vs IP MTU (L3 MTU)
 
-| 比較項目 | L2 MTU (System MTU) | IP MTU (L3 MTU / IP MTU) [23, 24, 1.2.k] |
+| 比較項目 | L2 MTU (System MTU) | IP MTU (L3 MTU / IP MTU) |
 | :--- | :--- | :--- |
 | **適用範囲** | イーサネットヘッダーのペイロードの最大サイズ（FCS、L2タグ除くフレーム最大値）。 | レイヤ3（IPパケット）ヘッダーからペイロードの最大サイズ。 |
 | **フラグメンテーション挙動** | **一切行われない。** 超過フレームは即座にポート上で破棄（Giantsカウンタ加算）。 | DFビットが0の場合、送信元またはルータ（L3境界）でパケットを**自動的に断片化（フラグメント）**。 |
