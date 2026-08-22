@@ -645,23 +645,19 @@ Active DYNAMIC MAC entries: 32000 (Maximum limit reached!)
 
 ## 🔗 参考リソース
 
-### Cisco Live (動画・スライド)
-* [**BRKCRS-2031: Enterprise Campus Design - Layer 2 Control Plane**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-  * MACアドレステーブル管理、CAMの保護、BPDUガード、Loop Guardの体系的設計ガイド。
-* [**BRKARC-3437: Cisco Catalyst 9000 Switching Architecture Deep Dive**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKARC-3437)
-  * Catalyst 9000シリーズのASIC（UADP）上で動作するCAMエントリ学習とL2 MTU制御方式の詳細。
+### CiscoLive (動画・スライド)
+*   [BRKENS-1501: Enterprise Campus Wired Design Fundamentals](https://www.ciscolive.com/on-demand/on-demand-library.html?search=switches%20campus#/session/1675722366620001tcWQ)
+*   [BRKENS-2031: Enterprise Campus Design](https://www.ciscolive.com/on-demand/on-demand-library.html?search=switches%20campus#/session/1675722366753001tPaF)
 
 ### Configuration ガイド（Cisco公式）
-* [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Configuration Guide (Release 17.x)**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg.html)
-  * MACアドレステーブル、MTU、Errdisable設定の全コマンド、パラメータ仕様。
-* [**Configuring Port-Security and Switch Security Features (Catalyst 9000)**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/sec/b_17x_sec_9300_cg.html) [13, 34, 42.a]
-  * ポートセキュリティ違反違反による Errdisable トリガーとの親和性設計ガイド。
+*   [Managing MAC Address Table ](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_0110.html#topic_8B3F5E7D86EB4448B449DFE9EC9A4751)
+*   [Configuring System MTU](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_010000.html)
+*   [Errdisable Recoveryのトラブルシューティングと設定](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/69980-errdisable-recovery.html)
 
 ### テクニカルドキュメント・テクニカルノーツ
-* [**Understanding and Troubleshooting Errdisable Port State on Cisco Switches**](https://www.cisco.com/c/en/us/support/docs/lan-switching/spanning-tree-protocol/6998-errdisable-recovery.html)
-  * Errdisable状態を招くすべての原因リストと、リカバリメカニズムの解説。
-* [**Cisco Software-Defined Access (SD-Access) Design Guide (CVD)**](https://www.cisco.com/c/en/us/td/docs/solutions/CVD/Campus/sda-sdg-2019oct.pdf)
-  * ファブリック内オーバーレイVXLANパケットを透過させるためのMTU 9100設計一貫性に関する完全なベストプラクティス。
+* [Cisco IOS プラットフォームでの Errdisable ポート状態の回復](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/69980-errdisable-recovery.html)
+* [SD-Access ワイヤレス設計および導入ガイド](https://www.cisco.com/c/ja_jp/td/docs/wireless/controller/technotes/8-5/b_SD_Access_Wireless_Deployment_Guide.html)
+
 
 ---
 
