@@ -243,11 +243,11 @@ interface GigabitEthernet1/0/1
 
 | 症状 | 原因 | 確認コマンド | 対処方法 |
 | :--- | :--- | :--- | :--- |
-| **スイッチ全体のMAC学習プロセスがハングし、すべての通信がすべてのポートへフラッディングされる。** | **MACアドレスバッファ（CAMテーブル）が上限超過（MAC Flooding攻撃または巨大ループ）**し、新規学習が不可になった。 | <code>show mac address-table count</code> | 1. <code>clear mac address-table dynamic</code> で一時キャッシュをクリア。<br>2. ループを検知し閉塞するか、不要なMACの学習を制限するためにポートセキュリティ（<code>port-security</code>）を適用する [13, 34, 42.a]。 |
+| **スイッチ全体のMAC学習プロセスがハングし、すべての通信がすべてのポートへフラッディングされる。** | **MACアドレスバッファ（CAMテーブル）が上限超過（MAC Flooding攻撃または巨大ループ）**し、新規学習が不可になった。 | <code>show mac address-table count</code> | 1. <code>clear mac address-table dynamic</code> で一時キャッシュをクリア。<br>2. ループを検知し閉塞するか、不要なMACの学習を制限するためにポートセキュリティ（<code>port-security</code>）を適用する 。 |
 | **ループ等のトラブル解決後も、対象ポートが「Down/Down (err-disabled)」から自動的に戻らない。** | Errdisable Recovery がグローバルで該当の原因（例: <code>loopback</code> / <code>udld</code>）に対して**有効化されていない**、または**タイマーが満了していない**。 | <code>show errdisable recovery</code> | 1. 該当原因を <code>errdisable recovery cause [原因]</code> で有効化。<br>2. <code>errdisable recovery interval 30</code> を設定して復旧を加速させる。 |
 | **Errdisableリカバリによって一度ポートが回復（Up/Up）するが、約1〜2秒後に再び Errdisable に戻ってしまう。** | エラーの**根本原因（例：違反パケットの送信元が接続されたまま、光ファイバの片芯断線の物理的未修復）が継続**している。 | <code>show interfaces status err-disabled</code><br><code>show logging</code> | 物理的なループ配線の撤去、ポートセキュリティ違反クライアントの切断、UDLDアグレッシブの場合は光ファイバパッチコードの清掃・交換。 |
-| **ホスト間の大容量パケットが静かに破棄（サイレントロス）される。Giantsエラーが入力ポートで激増する。** | 対向ポート間、または中継L2トランクリンク間で **L2 MTU が不一致（MTUミスマッチ）** となっている。 | <code>show system mtu</code><br><code>show interfaces [INT]</code> | 送信元から宛先までのデータパス上にあるすべての物理・論理インターフェイス（Port-Channel含む）のMTUを一貫した値（例：一律 9000 または 9100）に修正する [12, 1.1]。 |
-| **物理ポートの L2 MTU を変更したが、 show ip interface 等の L3 MTU 表示に反映されない。** | L2 MTU と L3 MTU は内部処理として分離されている。L2 MTU はフレーム全体の上限、L3 MTU（IP MTU）はペイロードの上限を指す。 | <code>show ip interface [INT]</code> | インターフェイス設定配下で <code>ip mtu </code> コマンドを明示的に適用してL3バジェットを整合させる [23, 24, 1.2.k]。 |
+| **ホスト間の大容量パケットが静かに破棄（サイレントロス）される。Giantsエラーが入力ポートで激増する。** | 対向ポート間、または中継L2トランクリンク間で **L2 MTU が不一致（MTUミスマッチ）** となっている。 | <code>show system mtu</code><br><code>show interfaces [INT]</code> | 送信元から宛先までのデータパス上にあるすべての物理・論理インターフェイス（Port-Channel含む）のMTUを一貫した値（例：一律 9000 または 9100）に修正する。 |
+| **物理ポートの L2 MTU を変更したが、 show ip interface 等の L3 MTU 表示に反映されない。** | L2 MTU と L3 MTU は内部処理として分離されている。L2 MTU はフレーム全体の上限、L3 MTU（IP MTU）はペイロードの上限を指す。 | <code>show ip interface [INT]</code> | インターフェイス設定配下で <code>ip mtu </code> コマンドを明示的に適用してL3バジェットを整合させる。 |
 
 ---
 
