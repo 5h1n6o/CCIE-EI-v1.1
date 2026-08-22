@@ -224,7 +224,7 @@ interface GigabitEthernet1/0/2
 | :--- | :--- | :--- | :--- |
 | **CE間のSTP隣接関係が確立せず、独立したルートブリッジとなってしまう。** | PE側の接続ポートで <code>l2protocol-tunnel spanning-tree</code> が未構成。 | <code>show l2protocol-tunnel</code> | 対象のPEスイッチの <code>dot1q-tunnel</code> ポート配下で <code>l2protocol-tunnel spanning-tree</code> を追加。 |
 | **拠点のLACPポートチャネルがバンドルに失敗し、「Suspended (I)」となる。** | LACPDU（プロトコルパケット）がPE側でトンネリングされず破棄されている。 | <code>show interfaces trunk</code><br><code>show l2protocol-tunnel</code> | インターフェイス設定で <code>l2protocol-tunnel point-to-point lacp</code> を追加。 |
-| **大きなパケットが透過中のみサイレントドロップされ、IPsec等の接続が不安定になる。** | **MTUサイズ制限。** 2重タギング（QinQ）による8バイトのオーバーヘッドにより、1500バイト超過パケットがドロップ。 | <code>show system mtu</code><br><code>show interfaces</code> | PEスイッチ内の全データパス上の物理・論理インターフェイスのMTUサイズを最低でも **1508〜1522バイト以上（推奨はJumbo 9000以上）** に引き上げる [12, 1.1]。 |
+| **大きなパケットが透過中のみサイレントドロップされ、IPsec等の接続が不安定になる。** | **MTUサイズ制限。** 2重タギング（QinQ）による8バイトのオーバーヘッドにより、1500バイト超過パケットがドロップ。 | <code>show system mtu</code><br><code>show interfaces</code> | PEスイッチ内の全データパス上の物理・論理インターフェイスのMTUサイズを最低でも **1508〜1522バイト以上（推奨はJumbo 9000以上）** に引き上げる 。 |
 | **ポートが「err-disabled」になり、Syslogに「%PM-4-ERR_DISABLE: l2ptguard」が表示される。** | 顧客側の不正STP動作等により、指定したL2PTドロップ/シャットダウン閾値（Threshold）を超過した。 | <code>show interfaces status err-disabled</code> | 1. 顧客側の障害パケット送出原因の特定・排除。<br>2. グローバルで <code>errdisable recovery cause l2ptguard</code> を適用して自動復旧させる。 |
 
 ---
