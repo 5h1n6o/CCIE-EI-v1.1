@@ -1134,15 +1134,18 @@ L3スイッチで構築された大規模なマルチレイヤバックボーン
 * [**BRKENS-2500: Advanced Campus Network Design: Multilayer Architectures and Next-Gen Protocols**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENS-2500.pdf) 
 
 ### Configuration ガイド（シスコ公式）
-* [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg.html)
+* [**Cisco IOS XE 17.x: Software Configuration Guide, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg.html)
 * [**Cisco IOS XE 17.x: Command Reference, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr.html)
+* [**Cisco IOS Release 15.2(4)E: Configuring IEEE 802.1Q and Layer 2 Protocol Tunneling**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_011000.html)
+* [**Cisco IOS Release 15.2(4)E: Configuring the Cisco Discovery Protocol**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_0100101.html)
+* [**Cisco IOS Release 15.2(4)E: Configuring UniDirectional Link Detection**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_0100111.html)
 
 ### テクニカルノート・設定例
 * [**Understanding and Configuring the Unidirectional Link Detection Protocol (UDLD) Feature**](https://www.cisco.com/c/en/us/support/docs/lan-switching/spanning-tree-protocol/10556-16.html)
   * UDLDのタイマー動作、アグレッシブモードのステートマシン、トラブルシューティングに関する公式テクニカルノーツ。
 * [**Integrating IP Telephony in Cisco Campus Networks (CVD)**](https://www.cisco.com/c/en/us/td/docs/solutions/CVD/Campus/sda-sdg-2019oct.pdf)
   * CDPおよびLLDP-MEDによる音声VLANとPoEネゴシエーションのシスコ検証済みデザイン（CVD）。
-* [Cisco Catalyst 9000 Switching Family](https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-9000/nb-06-cat9k-ebook-cte-en.html)
+* [**Cisco Catalyst 9000 Switching Family**](https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-9000/nb-06-cat9k-ebook-cte-en.html)
 
 ---
 
