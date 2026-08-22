@@ -478,22 +478,6 @@ CE1 と CE2 スイッチ間をポートチャネル（LACP）で接続し、PE1 
 
 ---
 
-## 🔗 参考リソース
-
-### Cisco Live (スライド・オンデマンド)
-* [**BRKCRS-2031: Layer 2 Control Plane Design and Best Practices**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-  * L2PTトンネリングや、SP/キャンパス内でのクラシックなQinQ設計に関するシスコ公式ベストプラクティス。
-* [**BRKARC-3437: Cisco Catalyst 9000 Switching Architecture Deep Dive**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKARC-3437)
-  * UADP ASIC上におけるVLAN Translation、802.1Q Tunneling、およびMACアドレスリライトのハードウェア処理深度解説。
-
-### Configuration ガイド（シスコ公式）
-* [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Configuration (Release 17.x)**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg.html)
-  * IEEE 802.1Qトンネリング（QinQ）およびレイヤ2プロトコルトンネリング（L2PT）の実装手順全般。
-* [**Configuring VLAN Mapping (VLAN Translation) on Cisco Catalyst 9000 Switches**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9500/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9500_cg/m_vlan_mapping.html)
-  * スイッチトランクポートにおける1対1、1対2のVLAN変換機能に関する構成およびコマンドレファレンス。
-
----
-
 ## 📝 **補足（Notes）**
 
 ### L2PT 宛先 MAC アドレス変換の対応チェックテーブル
@@ -1146,22 +1130,19 @@ L3スイッチで構築された大規模なマルチレイヤバックボーン
 ## 🔗 参考リソース
 
 ### Cisco Live (スライド・オンデマンド)
-* [**BRKCRS-2031: Enterprise Campus Design - Layer 2 Control Plane Best Practices**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-  * キャンパスにおけるCDP/LLDPおよびUDLD/STP連携設計の集大成。
-* [**BRKARC-3437: Cisco Catalyst 9000 Switching Architecture Deep Dive**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKARC-3437)
-  * ASIC（UADP）上におけるL2/L3プレフィルタリングとコントロールプレーン保護の関係。
+* [**BRKCRS-2031: Enterprise Campus Design: Multilayer Architectures and Design Principles**](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2023/pdf/BRKENS-2031.pdf)
+* [**BRKENS-2500: Advanced Campus Network Design: Multilayer Architectures and Next-Gen Protocols**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENS-2500.pdf) 
 
 ### Configuration ガイド（シスコ公式）
-* [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg.html)
-  * CDP, LLDP, LLDP-MED, およびUDLDの全機能の実装ガイドライン。
-* [**Cisco IOS XE 17.x: Command Reference, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/command_reference/b_17x_lyr2_9300_cr.html)
-  * `udld port aggressive` や `lldp tlv-select` などのコマンドシンタックス一覧。
+* [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg.html)
+* [**Cisco IOS XE 17.x: Command Reference, Layer 2 Protocols**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr.html)
 
 ### テクニカルノート・設定例
 * [**Understanding and Configuring the Unidirectional Link Detection Protocol (UDLD) Feature**](https://www.cisco.com/c/en/us/support/docs/lan-switching/spanning-tree-protocol/10556-16.html)
   * UDLDのタイマー動作、アグレッシブモードのステートマシン、トラブルシューティングに関する公式テクニカルノーツ。
 * [**Integrating IP Telephony in Cisco Campus Networks (CVD)**](https://www.cisco.com/c/en/us/td/docs/solutions/CVD/Campus/sda-sdg-2019oct.pdf)
   * CDPおよびLLDP-MEDによる音声VLANとPoEネゴシエーションのシスコ検証済みデザイン（CVD）。
+* [Cisco Catalyst 9000 Switching Family](https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-9000/nb-06-cat9k-ebook-cte-en.html)
 
 ---
 
