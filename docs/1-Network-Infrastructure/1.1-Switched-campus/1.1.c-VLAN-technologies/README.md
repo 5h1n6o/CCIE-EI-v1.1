@@ -827,16 +827,13 @@ SD-Access（Software-Defined Access）ネットワークを設計しています
 ## 🔗 参考リソース
 
 ### Cisco Live (スライド・オンデマンド)
-*   [**BRKCRS-2031: Layer 2 Control Plane Design and Best Practices in Campus Networks**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-    *   VLANトランキング、Native VLANセキュリティ、VTP v3の実装設計の完全解説。
-*   [**BRKCRS-2452: Enterprise Campus Campus Network Hardening and Security**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2452)
-    *   VLANホッピング攻撃、DTP偽装脅威の技術解説および防御コンフィグレーションガイド。
+* [**BRKCRS-2031: Enterprise Campus Design: Multilayer Architectures and Design Principles**](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2023/pdf/BRKENS-2031.pdf)
+* [**BRKENS-2614: Campus Design with Secure Networking Reference Architecture**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENS-2614.pdf) 
 
 ### Configuration ガイド（シスコ公式）
-*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, VLAN Configuration**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg.html)
-    *   Cisco IOS-XE 17.xにおけるVLAN作成、VTP、Trunk/Accessポート構成のマスターリファレンス。
-*   [**Configuring Voice VLANs on Cisco Catalyst 9000 Switches**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg/m_voice_vlan.html)
-    *   IP Phone収容、QoS信頼境界、およびMDAポートセキュリティとの組み合わせ整合ガイド。
+* [**Cisco IOS XE 17.x: Software Configuration Guide, VLAN Configuration Guide**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/vlan/b_179_vlan_9300_cg.html)
+* [**Cisco IOS XE 17.x: Command Reference, VLAN Commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr/vlan_commands.html)
+* [**Cisco IOS Release 15.2(4)E: VLANs**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_010100.html)
 
 ---
 
