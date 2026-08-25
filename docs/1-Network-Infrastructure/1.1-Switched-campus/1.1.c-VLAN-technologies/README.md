@@ -856,3 +856,120 @@ SD-Access（Software-Defined Access）ネットワークを設計しています
 *   **Voice VLANの最適化**
     *   [ ] IP Phone接続ポートで `spanning-tree portfast` が有効化され、ポートが即座にフォワーディング状態へ遷移するか？
     *   [ ] 802.1Xとの併用時、ポートのホストモードが `multi-domain` に設定されているか？
+
+ ### 本項で使用されるコマンド例
+
+ ```md
+# ===============================
+# Access Port 設定
+# ===============================
+
+Switch1(config-if)# ! ポートを Access VLAN 10 に設定
+Switch1(config-if)# switchport mode access
+Switch1(config-if)# switchport access vlan 10
+
+Switch1(config-if)# ! PortFast を有効化
+Switch1(config-if)# spanning-tree portfast
+
+
+# ===============================
+# Trunk Port（802.1Q）設定
+# ===============================
+
+Switch1(config-if)# ! トランクモードを手動で設定
+Switch1(config-if)# switchport mode trunk
+
+Switch1(config-if)# ! DTP を無効化（推奨）
+Switch1(config-if)# switchport nonegotiate
+
+Switch1(config-if)# ! Native VLAN を 99 に設定
+Switch1(config-if)# switchport trunk native vlan 99
+
+Switch1(config-if)# ! Trunk に許可する VLAN を手動で設定
+Switch1(config-if)# switchport trunk allowed vlan 10,20,30
+
+
+# ===============================
+# Normal Range VLAN 作成
+# ===============================
+
+Switch1(config)# ! VLAN 20 を作成
+Switch1(config)# vlan 20
+Switch1(config-vlan)# name Data_VLAN
+
+
+# ===============================
+# Extended Range VLAN 作成
+# ===============================
+
+Switch1(config)# ! VLAN 2000 を作成（VTP transparent 必須）
+Switch1(config)# vlan 2000
+Switch1(config-vlan)# name EXT_VLAN
+
+
+# ===============================
+# Voice VLAN 設定
+# ===============================
+
+Switch1(config-if)# ! Voice VLAN を 150 に設定
+Switch1(config-if)# switchport voice vlan 150
+
+Switch1(config-if)# ! QoS の CoS マッピングを有効化
+Switch1(config-if)# mls qos trust device cisco-phone
+
+
+# ===============================
+# Private VLAN（PVLAN）設定
+# ===============================
+
+Switch1(config)# ! Primary VLAN 100 を作成
+Switch1(config)# vlan 100
+Switch1(config-vlan)# private-vlan primary
+
+Switch1(config)# ! Isolated VLAN 101 を作成
+Switch1(config)# vlan 101
+Switch1(config-vlan)# private-vlan isolated
+
+Switch1(config)# ! Community VLAN 102 を作成
+Switch1(config)# vlan 102
+Switch1(config-vlan)# private-vlan community
+
+Switch1(config)# ! Primary VLAN に Secondary VLAN を紐付け
+Switch1(config-vlan)# private-vlan association 101,102
+
+Switch1(config-if)# ! ポートを PVLAN の Host モードに設定
+Switch1(config-if)# switchport mode private-vlan host
+Switch1(config-if)# switchport private-vlan host-association 100 101
+
+Switch1(config-if)# ! Promiscuous ポート設定
+Switch1(config-if)# switchport mode private-vlan promiscuous
+Switch1(config-if)# switchport private-vlan mapping 100 101,102
+
+
+# ===============================
+# Wired Dynamic PVLAN 設定
+# ===============================
+
+Switch1(config)# ! Dynamic PVLAN を有効化
+Switch1(config)# pvlan dynamic enable
+
+Switch1(config)# ! Dynamic PVLAN の VLAN マッピング
+Switch1(config)# pvlan dynamic vlan 100 mapping 101
+
+Switch1(config-if)# ! ポートを Dynamic PVLAN に参加
+Switch1(config-if)# switchport pvlan dynamic 100
+
+
+# ===============================
+# VLAN 状態確認
+# ===============================
+
+Switch1# ! VLAN の一覧を表示
+Switch1# show vlan
+
+Switch1# ! Trunk の状態を確認
+Switch1# show interfaces trunk
+
+Switch1# ! PVLAN の状態を確認
+Switch1# show pvlan
+```
