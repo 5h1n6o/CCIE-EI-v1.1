@@ -718,17 +718,18 @@ Dual-Active Detection（DAD）が適切に構成されていない、あるい�
 
 ## 🔗 参考リソース
 
-### Cisco Live（オンデマンド・スライド資料）
-*   [**BRKCRS-2031: Layer 2 Control Plane Design and Troubleshooting**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-    *   LACPの動作、タイマーの最適化、ロードバランシングの偏り排除技術（ハッシュバケット解説）の完全講義。
-*   [**BRKCRS-2452: Highly Available Enterprise Campus Network Design**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2452)
-    *   StackWise Virtual、MEC、SSO/NSF時の切替コンバージェンス、DAD（Dual-Active Detection）設計ベストプラクティス。
-
+### Cisco Live (スライド・オンデマンド)
+* [**BRKCRS-2031: Enterprise Campus Design: Multilayer Architectures and Design Principles**](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2023/pdf/BRKENS-2031.pdf)
+* [**BRKENS-2614: Campus Design with Secure Networking Reference Architecture**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENS-2614.pdf)
+* 
 ### Cisco ソフトウェア設定ガイド（Configuration Guide）
-*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Configuring EtherChannels**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg/m_configuring_etherchannels.html)
-    *   動的LACP、ポート優先度、Rate Fast、Min-links等のCatalyst 9000における公式実装ドキュメント。
-*   [**Cisco IOS XE 17.x Layer 2 Command Reference: channel-group and lacp commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/command_reference/b_17x_lyr2_9300_cr.html)
-    *   `lacp port-priority`、`port-channel min-links` などのパラメーター仕様。
+*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Configuring EtherChannels**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg/configuring_etherchannels.html)
+* [**Cisco IOS Release 15.2(4)E: Configuring EtherChannels**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_01000010.html)
+
+
+### Cisco コマンドリファレンス
+*   [**Cisco IOS XE 17.x Layer 2 Command Reference: channel-group commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr/layer_2_3_commands.html#wp1281677838)
+*   [**Cisco IOS XE 17.x Layer 2 Command Reference: lacp commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr/layer_2_3_commands.html#wp2385585063)
 
 ---
 
