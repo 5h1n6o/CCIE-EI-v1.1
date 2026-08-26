@@ -761,6 +761,96 @@ Dual-Active Detection（DAD）が適切に構成されていない、あるい�
     *   [ ] StackWise Virtual などのマルチシャーシ環境では、MECを跨ぐ対向スイッチ側の LACP 構成を確実に `active` に統一し、STPの再計算の影響を排除しているか？
 
 ---
-🚀 **次に学習すべき推奨トピック:**
-EtherChannelによる複数の物理リンクの論理集約を完璧にマスターした後は、論理ポートチャネル上でのLayer 2トポロジー制御およびループ回避を統合的に司る **「1.1.e Spanning Tree Protocol (PVST+, Rapid PVST+, MST) & Tuning」** に進むことを強く推奨します。これにより、キャンパスネットワークのL2コントロールプレーン設計に関する全体像が完成します。
+
+### 本項目で使用するコマンド例
+
+```md
+# ===============================
+# L2 EtherChannel（Access / Trunk）
+# ===============================
+
+Switch1(config-if)# ! L2 EtherChannel を access VLAN 10 に設定
+Switch1(config-if)# switchport mode access
+Switch1(config-if)# switchport access vlan 10
+
+Switch1(config-if)# ! PAgP desirable でチャネルグループに参加
+Switch1(config-if)# channel-group 5 mode desirable
+
+Switch1(config-if)# ! LACP active でチャネルグループに参加
+Switch1(config-if)# channel-group 5 mode active
+
+
+# ===============================
+# L3 EtherChannel（Routed Port）
+# ===============================
+
+Switch1(config-if)# ! L3 EtherChannel のために switchport を無効化
+Switch1(config-if)# no switchport
+Switch1(config-if)# no ip address
+
+Switch1(config-if)# ! LACP active でチャネルグループに参加
+Switch1(config-if)# channel-group 7 mode active
+
+
+# ===============================
+# Load Balancing 設定
+# ===============================
+
+Switch1(config)# ! EtherChannel のロードバランスを src-dst-ip に設定
+Switch1(config)# port-channel load-balance src-dst-ip
+
+
+# ===============================
+# LACP Max-Bundle / Min-Links
+# ===============================
+
+Switch1(config-if)# ! LACP の active メンバー数を 3 に制限
+Switch1(config-if)# lacp max-bundle 3
+
+Switch1(config-if)# ! EtherChannel が UP になるための最小リンク数を 3 に設定
+Switch1(config-if)# port-channel min-links 3
+
+
+# ===============================
+# LACP 1:1 Redundancy
+# ===============================
+
+Switch1(config-if)# ! LACP 1:1 の高速スイッチオーバーを有効化
+Switch1(config-if)# lacp fast-switchover
+
+Switch1(config-if)# ! active メンバーを 1 本に固定
+Switch1(config-if)# lacp max-bundle 1
+
+Switch1(config-if)# ! 復帰時の dampening を 60 秒に設定
+Switch1(config-if)# lacp fast-switchover dampening 60
+
+
+# ===============================
+# Auto-LAG（自動 EtherChannel）
+# ===============================
+
+Switch1(config)# ! Auto-LAG を有効化
+Switch1(config)# port-channel auto
+
+Switch1(config-if)# ! ポート単位で Auto-LAG を有効化
+Switch1(config-if)# channel-group auto
+
+
+# ===============================
+# EtherChannel 状態確認
+# ===============================
+
+Switch1# ! EtherChannel のサマリ表示
+Switch1# show etherchannel summary
+
+Switch1# ! LACP の内部状態表示
+Switch1# show lacp internal
+
+Switch1# ! PAgP の内部状態表示
+Switch1# show pagp internal
+
+Switch1# ! EtherChannel のロードバランス方式を確認
+Switch1# show etherchannel load-balance
+```
+
 
