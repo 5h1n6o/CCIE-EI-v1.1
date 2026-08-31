@@ -703,23 +703,25 @@ SW1側の Priority を `4096` にし、SW2側を `32768` に設定したため�
 
 ## 🔗 参考リソース
 
-### Cisco Live（オンデマンド・スライド資料）
-*   [**BRKCRS-2452: Enterprise Campus Loop-Free Design and Switched Campus Hardening**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2452)
-    *   スイッチドキャンパスにおけるループフリー設計、STPガード機能（Root/Loop/BPDU Guard）の最深のASIC/ソフトウェア実装解説。
-*   [**BRKCRS-2031: Layer 2 Control Plane Design and Migration to MSTP**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2031)
-    *   PVST+ から MST（Multiple Spanning Tree）への無停止・最小瞬断での移行設計、およびリージョン境界ポートのパケット処理深度解説。
-
+### Cisco Live (スライド・オンデマンド)
+* [**BRKCRS-2031: Enterprise Campus Design: Multilayer Architectures and Design Principles**](https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2023/pdf/BRKENS-2031.pdf)
+* [**BRKENS-2614: Campus Design with Secure Networking Reference Architecture**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENS-2614.pdf)
+* 
 ### Cisco ソフトウェア設定ガイド（Configuration Guide）
-*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Layer 2 Configuration - Spanning Tree Protocol**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/lyr2/b_17x_lyr2_9300_cg.html)
-    *   Cisco IOS-XE 17.x における Spanning-Tree の構成、チューニング、および全保護機能の実装・設定マスターリファレンス。
-*   [**Cisco IOS XE 17.x Layer 2 Command Reference: Spanning Tree commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/command_reference/b_17x_lyr2_9300_cr.html)
-    *   `spanning-tree portfast`、`spanning-tree guard root`、`spanning-tree pathcost method` などのCLIコマンド仕様一覧。
+*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Configuring Spanning Tree Protocol**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg/configuring_spanning_tree_protocol.html)
+*   [**Cisco Catalyst 9300 Series Switches: Software Configuration Guide, Configuring Multiple Spanning-Tree Protocol**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/lyr2/b_179_lyr2_9300_cg/configuring_multiple_spanning_tree_protocol.html)
+* [**Cisco IOS Release 15.2(4)E: Configuring Spanning Tree Protocol**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst3750x_3560x/software/release/15-2_4_e/configurationguide/b_1524e_consolidated_3750x_3560x_cg/b_1524e_consolidated_3750x_3560x_cg_chapter_0111111.html)
+
+
+### Cisco コマンドリファレンス
+*   [**Cisco IOS XE 17.x Layer 2 Command Reference: spaning-tree commands**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/command_reference/b_179_9300_cr/layer_2_3_commands.html#wp3460565461)
+
 
 ### テクニカルノート・設計ホワイトペーパー
-*   [**Spanning Tree PortFast BPDU Guard Enhancement**](https://www.cisco.com/c/en/us/support/docs/lan-switching/spanning-tree-protocol/10586-84.html)
-    *   BPDU Guard の動き、err-disable からの自動復旧プロセスに関する詳細なシスコ公式解説書。
-*   [**Spanning Tree Protocol Friendly Guide and Troubleshooting**](https://www.cisco.com/c/en/us/support/docs/lan-switching/spanning-tree-protocol/10556-16.html)
-    *   STPタイマーの挙動、コストマトリクス（Short/Long）、およびLoop/Root Guardのステートマシンの動きの解説。
+*   [**スパニングツリーPortFastおよびBPDUガード機能の理解**](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/10586-65.html)
+*   [**CatalystスイッチでのSTP問題のトラブルシューティング**](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/28943-170.html)
+*   [**STP問題のトラブルシューティングと設計上の考慮事項**](https://www.cisco.com/c/ja_jp/support/docs/lan-switching/spanning-tree-protocol/10556-16.html)
+*   [**Campus LAN and Wireless LAN Solution Design Guide**](https://www.cisco.com/c/en/us/td/docs/solutions/CVD/Campus/cisco-campus-lan-wlan-design-guide.html)
 
 ---
 
@@ -752,3 +754,282 @@ SW1側の Priority を `4096` にし、SW2側を `32768` に設定したため�
 💡 **次に学習すべきトピックの推薦:**
 Spanning-Tree による L2 コントロールプレーンの保護および最適化チューニングを完璧に理解した後は、レイヤ2の境界を完全に終了させ、IPルーティングの高速障害検知をミリ秒単位で制御するダイナミックコントロールテクノロジーである **「1.2.j Bidirectional Forwarding Detection (BFD)」** に進むことをお勧めします。これにより、L2（STP/UDLD）とL3（BFD/ルーティング）を統合した超高速復旧ネットワーク（ハイアベイラビリティ）設計が完成します。
 
+### 本項目で使用するコマンド
+
+```md
+# ===============================
+# STP モード設定（PVST+ / Rapid-PVST+ / MST）
+# ===============================
+
+Switch1(config)# ! Rapid-PVST+ を有効化
+Switch1(config)# spanning-tree mode rapid-pvst
+
+Switch1(config)# ! PVST+ を有効化
+Switch1(config)# spanning-tree mode pvst
+
+Switch1(config)# ! MST を有効化
+Switch1(config)# spanning-tree mode mst
+
+
+# ===============================
+# MST 設定（リージョン名 / リビジョン / VLAN マッピング）
+# ===============================
+
+Switch1(config)# ! MST 設定モードへ
+Switch1(config)# spanning-tree mst configuration
+Switch1(config-mst)# name CCIE_REGION
+Switch1(config-mst)# revision 10
+Switch1(config-mst)# instance 1 vlan 10,20
+Switch1(config-mst)# instance 2 vlan 30,40
+Switch1(config-mst)# exit
+
+
+# ===============================
+# Root Bridge / Secondary Root 設定
+# ===============================
+
+Switch1(config)# ! VLAN 10 の Root Bridge に設定
+Switch1(config)# spanning-tree vlan 10 root primary
+
+Switch1(config)# ! VLAN 10 の Secondary Root に設定
+Switch1(config)# spanning-tree vlan 10 root secondary
+
+
+# ===============================
+# Bridge Priority 設定
+# ===============================
+
+Switch1(config)# ! VLAN 10 の Bridge Priority を 4096 に設定
+Switch1(config)# spanning-tree vlan 10 priority 4096
+
+
+# ===============================
+# Port Priority 設定
+# ===============================
+
+Switch1(config-if)# ! ポートの Port Priority を 64 に設定
+Switch1(config-if)# spanning-tree port-priority 64
+
+Switch1(config-if)# ! VLAN 10 の Port Priority を 64 に設定
+Switch1(config-if)# spanning-tree vlan 10 port-priority 64
+
+
+# ===============================
+# Path Cost 設定
+# ===============================
+
+Switch1(config-if)# ! ポートの Path Cost を 200 に設定
+Switch1(config-if)# spanning-tree cost 200
+
+Switch1(config-if)# ! VLAN 10 の Path Cost を 300 に設定
+Switch1(config-if)# spanning-tree vlan 10 cost 300
+
+Switch1(config)# ! Path Cost 計算方式を Long（32-bit）に変更
+Switch1(config)# spanning-tree pathcost method long
+
+
+# ===============================
+# STP タイマー設定（Hello / Forward Delay / Max Age）
+# ===============================
+
+Switch1(config)# ! VLAN 20 の Hello タイマーを 3 秒に設定
+Switch1(config)# spanning-tree vlan 20 hello-time 3
+
+Switch1(config)# ! VLAN 20 の Forward Delay を 18 秒に設定
+Switch1(config)# spanning-tree vlan 20 forward-time 18
+
+Switch1(config)# ! VLAN 20 の Max Age を 30 秒に設定
+Switch1(config)# spanning-tree vlan 20 max-age 30
+
+
+# ===============================
+# PortFast / BPDU Guard / BPDU Filter
+# ===============================
+
+Switch1(config)# ! 全アクセスポートで PortFast を有効化
+Switch1(config)# spanning-tree portfast default
+
+Switch1(config)# ! PortFast ポートで BPDU Guard を有効化
+Switch1(config)# spanning-tree portfast bpduguard default
+
+Switch1(config)# ! PortFast ポートで BPDU Filter（安全版）を有効化
+Switch1(config)# spanning-tree portfast bpdufilter default
+
+Switch1(config-if)# ! 個別ポートで PortFast を有効化
+Switch1(config-if)# spanning-tree portfast
+
+Switch1(config-if)# ! 個別ポートで BPDU Guard を有効化
+Switch1(config-if)# spanning-tree bpduguard enable
+
+Switch1(config-if)# ! 危険：BPDU Filter を強制有効化（BPDU 完全破棄）
+Switch1(config-if)# spanning-tree bpdufilter enable
+
+
+# ===============================
+# Root Guard / Loop Guard
+# ===============================
+
+Switch1(config-if)# ! Root Guard を有効化
+Switch1(config-if)# spanning-tree guard root
+
+Switch1(config)# ! Loop Guard を全トランクで有効化
+Switch1(config)# spanning-tree loopguard default
+
+
+# ===============================
+# STP 状態確認
+# ===============================
+
+Switch1# ! STP サマリ表示
+Switch1# show spanning-tree summary
+
+Switch1# ! VLAN 10 の STP 状態表示
+Switch1# show spanning-tree vlan 10
+
+Switch1# ! インターフェイスの STP 詳細表示
+Switch1# show spanning-tree interface GigabitEthernet1/0/1
+
+Switch1# ! PortFast 状態確認
+Switch1# show spanning-tree interface GigabitEthernet1/0/10 portfast
+
+Switch1# ! inconsistent ポート一覧（Root/Loop Guard）
+Switch1# show spanning-tree inconsistentports
+# ===============================
+# STP モード設定（PVST+ / Rapid-PVST+ / MST）
+# ===============================
+
+Switch1(config)# ! Rapid-PVST+ を有効化
+Switch1(config)# spanning-tree mode rapid-pvst
+
+Switch1(config)# ! PVST+ を有効化
+Switch1(config)# spanning-tree mode pvst
+
+Switch1(config)# ! MST を有効化
+Switch1(config)# spanning-tree mode mst
+
+
+# ===============================
+# MST 設定（リージョン名 / リビジョン / VLAN マッピング）
+# ===============================
+
+Switch1(config)# ! MST 設定モードへ
+Switch1(config)# spanning-tree mst configuration
+Switch1(config-mst)# name CCIE_REGION
+Switch1(config-mst)# revision 10
+Switch1(config-mst)# instance 1 vlan 10,20
+Switch1(config-mst)# instance 2 vlan 30,40
+Switch1(config-mst)# exit
+
+
+# ===============================
+# Root Bridge / Secondary Root 設定
+# ===============================
+
+Switch1(config)# ! VLAN 10 の Root Bridge に設定
+Switch1(config)# spanning-tree vlan 10 root primary
+
+Switch1(config)# ! VLAN 10 の Secondary Root に設定
+Switch1(config)# spanning-tree vlan 10 root secondary
+
+
+# ===============================
+# Bridge Priority 設定
+# ===============================
+
+Switch1(config)# ! VLAN 10 の Bridge Priority を 4096 に設定
+Switch1(config)# spanning-tree vlan 10 priority 4096
+
+
+# ===============================
+# Port Priority 設定
+# ===============================
+
+Switch1(config-if)# ! ポートの Port Priority を 64 に設定
+Switch1(config-if)# spanning-tree port-priority 64
+
+Switch1(config-if)# ! VLAN 10 の Port Priority を 64 に設定
+Switch1(config-if)# spanning-tree vlan 10 port-priority 64
+
+
+# ===============================
+# Path Cost 設定
+# ===============================
+
+Switch1(config-if)# ! ポートの Path Cost を 200 に設定
+Switch1(config-if)# spanning-tree cost 200
+
+Switch1(config-if)# ! VLAN 10 の Path Cost を 300 に設定
+Switch1(config-if)# spanning-tree vlan 10 cost 300
+
+Switch1(config)# ! Path Cost 計算方式を Long（32-bit）に変更
+Switch1(config)# spanning-tree pathcost method long
+
+
+# ===============================
+# STP タイマー設定（Hello / Forward Delay / Max Age）
+# ===============================
+
+Switch1(config)# ! VLAN 20 の Hello タイマーを 3 秒に設定
+Switch1(config)# spanning-tree vlan 20 hello-time 3
+
+Switch1(config)# ! VLAN 20 の Forward Delay を 18 秒に設定
+Switch1(config)# spanning-tree vlan 20 forward-time 18
+
+Switch1(config)# ! VLAN 20 の Max Age を 30 秒に設定
+Switch1(config)# spanning-tree vlan 20 max-age 30
+
+
+# ===============================
+# PortFast / BPDU Guard / BPDU Filter
+# ===============================
+
+Switch1(config)# ! 全アクセスポートで PortFast を有効化
+Switch1(config)# spanning-tree portfast default
+
+Switch1(config)# ! PortFast ポートで BPDU Guard を有効化
+Switch1(config)# spanning-tree portfast bpduguard default
+
+Switch1(config)# ! PortFast ポートで BPDU Filter（安全版）を有効化
+Switch1(config)# spanning-tree portfast bpdufilter default
+
+Switch1(config-if)# ! 個別ポートで PortFast を有効化
+Switch1(config-if)# spanning-tree portfast
+
+Switch1(config-if)# ! 個別ポートで BPDU Guard を有効化
+Switch1(config-if)# spanning-tree bpduguard enable
+
+Switch1(config-if)# ! 危険：BPDU Filter を強制有効化（BPDU 完全破棄）
+Switch1(config-if)# spanning-tree bpdufilter enable
+
+
+# ===============================
+# Root Guard / Loop Guard
+# ===============================
+
+Switch1(config-if)# ! Root Guard を有効化
+Switch1(config-if)# spanning-tree guard root
+
+Switch1(config)# ! Loop Guard を全トランクで有効化
+Switch1(config)# spanning-tree loopguard default
+
+
+# ===============================
+# STP 状態確認
+# ===============================
+
+Switch1# ! STP サマリ表示
+Switch1# show spanning-tree summary
+
+Switch1# ! VLAN 10 の STP 状態表示
+Switch1# show spanning-tree vlan 10
+
+Switch1# ! インターフェイスの STP 詳細表示
+Switch1# show spanning-tree interface GigabitEthernet1/0/1
+
+Switch1# ! PortFast 状態確認
+Switch1# show spanning-tree interface GigabitEthernet1/0/10 portfast
+
+Switch1# ! inconsistent ポート一覧（Root/Loop Guard）
+Switch1# show spanning-tree inconsistentports
+
+```
