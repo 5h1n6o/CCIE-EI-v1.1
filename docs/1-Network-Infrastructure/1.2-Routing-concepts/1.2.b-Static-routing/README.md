@@ -744,28 +744,12 @@ SW1において、マルチキャスト送信元「S: `192.168.88.88`」へ向�
 ## 🔗 参考リソース
 
 ### Configuration ガイド（シスコ公式）
-*   [**Cisco Catalyst 9300 Series Switches: IP Routing Configuration Guide, Configuring Static Routing**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/configuration_guide/rtg/b_17x_rtg_9300_cg/m_configuring_static_routing.html)
-    *   Cisco IOS-XE 17.x におけるユニキャストスタティックルート、VRF-Aware Static、および再帰解決に関する公式ドキュメント。
-*   [**Cisco IOS-XE IP Multicast Routing Configuration Guide, Configuring IP Multicast Static Routes**](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/ipmulti_pim/configuration/xe-16/imc-pim-xe-16-book/imc-static-routes.html)
-    *   `ip mroute` を用いたスタティックマルチキャストRPFチェック構成とオーバーライドに関する詳細なテクニカルガイド。
-*   [IP Routing: Protocol-Independent Configuration Guide (Cisco IOS XE 17.x)](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_pi/configuration/xe-17/iri-xe-17-book.html)
-*   [IPv6 Routing: Static Routing Configuration (Cisco Support)](https://www.cisco.com/c/en/us/support/docs/ip/ip-version-6-ipv6/113328-ipv6-static-00.html)
-*   [IP Multicast: Static mroute configuration](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/ipmulti_pim/configuration/xe-16/imc-pim-xe-16-book/imc-static-mroutes.html)
-*   
-### Command Reference（シスコ公式）
-*   [**Cisco IOS XE 17.x IP Routing Command Reference: ip route / ipv6 route**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-x/command_reference/b_17x_rtg_9300_cr.html)
-    *   `ip route` コマンド、`ipv6 route` コマンドにおける各種アソシエーションパラメータおよび制限に関するリファレンス。
-
-### Cisco Live（オンデマンド・スライド資料）
-*   [**BRKCRS-2001: Intent-Based Campus Layer 3 Routing Design and Deployment**](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCRS-2001)
-    *   スタブインフラにおけるセキュアなスタティックルーティング配置、Object Tracking連携、VRF間リーク時のルーティング設計デザインの講義。
-### CiscoLive (動画・スライド)
-*   [BRKRST-3320: Troubleshooting Routing Protocols](https://www.ciscolive.com/global/on-demand-library.html?search=BRKRST-3320)
-*   [BRKCCIE-3000: BGP is your Friend – BGP for the CCIE Candidates (再配送/AD操作含む)](https://www.ciscolive.com/global/on-demand-library.html?search=BRKCCIE-3000)
+*   [**Cisco Catalyst 9300 Series Switches: IP Routing Configuration Guide, Configuring Static Routing**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/rtng/b_179_rtng_9300_cg/configuring_ip_unicast_routing.html)
+*   [**Cisco IOS-XE IP Multicast Routing Configuration Guide, Configuring IP Multicast Static Routes**](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/ip_mcast_rtng/b_179_ip_mcast_rtng_9300_cg.html)
+*   [IP Routing: Protocol-Independent Configuration Guide (Cisco IOS XE 17.9)](https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/17-9/configuration_guide/rtng/b_179_rtng_9300_cg/protocol_independent_features.html)
 
 ### テクニカルドキュメント・設定例
-*   [Reliable Static Routing with IP SLA (Cisco TechNotes)](https://www.cisco.com/c/en/us/support/docs/ip/ip-routing/215357-reliable-static-routing-using-ip-sla.html)
-*   [Static Route and VRF Configuration Examples](https://www.cisco.com/c/en/us/support/docs/multiprotocol-label-switching-mpls/mpls/13731-static-vrf.html)
+*   [IP SLA の基本設定]([https://www.cisco.com/c/en/us/support/docs/ip/ip-routing/215357-reliable-static-routing-using-ip-sla.html](https://community.cisco.com/t5/tkb-%E3%83%8D%E3%83%83%E3%83%88%E3%83%AF%E3%83%BC%E3%82%AD%E3%83%B3%E3%82%B0-%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ip-sla-%E3%81%AE%E5%9F%BA%E6%9C%AC%E8%A8%AD%E5%AE%9A/ta-p/3166458))
 
 ---
 
