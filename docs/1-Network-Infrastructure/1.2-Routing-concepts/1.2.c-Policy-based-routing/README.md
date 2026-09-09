@@ -696,3 +696,61 @@ route-map RM_PBR permit 20
             (RIBのルート情報を無視)              /                                                     (明示的ルートあり)  (デフォルトルートのみ/なし)
                                              /                                                         【RIBに従って転送】    【PBR指定IPへ転送】
 ```
+
+---
+
+### この項で使用するコマンド
+
+```md
+# ===============================
+# Route-map 作成（PBR ポリシー）
+# ===============================
+
+Switch1(config)# ! PBR 用 route-map を作成
+Switch1(config)# route-map PBR-MAP permit 10
+
+Switch1(config-route-map)# ! ACL 110 と 140 に一致するトラフィックを分類
+Switch1(config-route-map)# match ip address 110 140
+
+Switch1(config-route-map)# ! パケット長 64〜1500 バイトを分類
+Switch1(config-route-map)# match length 64 1500
+
+Switch1(config-route-map)# ! 次ホップを 10.1.6.2 に設定（直接接続必須）
+Switch1(config-route-map)# set ip next-hop 10.1.6.2
+
+Switch1(config-route-map)# exit
+
+
+# ===============================
+# インターフェイスへ PBR を適用
+# ===============================
+
+Switch1(config)# ! Gi1/0/1 に PBR を適用
+Switch1(config)# interface GigabitEthernet1/0/1
+Switch1(config-if)# ip policy route-map PBR-MAP
+
+Switch1(config-if)# ! PBR の高速スイッチングを有効化（任意）
+Switch1(config-if)# ip route-cache policy
+
+
+# ===============================
+# Local PBR（スイッチ自身のトラフィックに適用）
+# ===============================
+
+Switch1(config)# ! ローカル生成トラフィックに PBR を適用
+Switch1(config)# ip local policy route-map PBR-MAP
+
+
+# ===============================
+# PBR 状態確認
+# ===============================
+
+Switch1# ! 適用されている PBR を確認
+Switch1# show ip policy
+
+Switch1# ! Local PBR の状態を確認
+Switch1# show ip local policy
+
+Switch1# ! route-map の内容を確認
+Switch1# show route-map PBR-MAP
+```
