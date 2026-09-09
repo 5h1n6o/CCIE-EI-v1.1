@@ -777,3 +777,81 @@ SW1において、マルチキャスト送信元「S: `192.168.88.88`」へ向�
     *   [ ] `show track <ID>` ➔ SLAリンク消失時に、Trackオブジェクトが即座に「DOWN」に遷移し、RIBからプライマリルートが正常に剥がれるか？
     *   [ ] `show ip rpf <送信元IP>` ➔ マルチキャストにおいて、指定した `ip mroute` インターフェイスがRPFチェック検証に合格しているか？
 
+---
+
+### この項で使用されるコマンド
+
+```md
+# ===============================
+# IP Routing の有効化
+# ===============================
+
+Switch1(config)# ! L3 ルーティングを有効化
+Switch1(config)# ip routing
+
+
+# ===============================
+# Static Unicast Route
+# ===============================
+
+Switch1(config)# ! 宛先 10.10.20.0/24 への静的ルートを設定
+Switch1(config)# ip route 10.10.20.0 255.255.255.0 10.1.1.1
+
+Switch1(config)# ! 次ホップではなく出口インターフェイス指定
+Switch1(config)# ip route 10.10.30.0 255.255.255.0 GigabitEthernet1/0/1
+
+Switch1(config)# ! デフォルトルートを設定
+Switch1(config)# ip route 0.0.0.0 0.0.0.0 10.1.1.254
+
+
+# ===============================
+# Classless Routing の制御
+# ===============================
+
+Switch1(config)# ! Classless Routing を無効化
+Switch1(config)# no ip classless
+
+Switch1(config)# ! Classless Routing を再度有効化
+Switch1(config)# ip classless
+
+
+# ===============================
+# Static ARP（補助的な静的ルーティング要素）
+# ===============================
+
+Switch1(config)# ! 静的 ARP エントリを追加
+Switch1(config)# arp 10.1.5.1 c2f3.220a.12f4 arpa
+
+
+# ===============================
+# Static Multicast Route（ip mroute）
+# ===============================
+
+Switch1(config)# ! マルチキャスト RPF を手動設定
+Switch1(config)# ip mroute 239.1.1.0 255.255.255.0 GigabitEthernet1/0/2 10.1.1.1
+
+
+# ===============================
+# Proxy ARP（静的ルーティング補助）
+# ===============================
+
+Switch1(config-if)# ! Proxy ARP を有効化
+Switch1(config-if)# ip proxy-arp
+
+
+# ===============================
+# Default Gateway（L2 モード時）
+# ===============================
+
+Switch1(config)# ! L2 スイッチとして動作する場合のデフォルトゲートウェイ
+Switch1(config)# ip default-gateway 10.1.5.1
+
+
+# ===============================
+# Static Routing 状態確認
+# ===============================
+
+Switch1# ! ルーティングテーブルを確認
+Switch1# show ip route
+
+```
