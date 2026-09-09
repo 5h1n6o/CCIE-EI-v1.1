@@ -781,6 +781,8 @@ SW1において、マルチキャスト送信元「S: `192.168.88.88`」へ向�
 
 ### この項で使用されるコマンド
 
+#### Unicast routing
+
 ```md
 # ===============================
 # IP Routing の有効化
@@ -854,4 +856,82 @@ Switch1(config)# ip default-gateway 10.1.5.1
 Switch1# ! ルーティングテーブルを確認
 Switch1# show ip route
 
+```
+
+#### Multicast Routing
+
+```md
+# ===============================
+# Static Multicast Route（ip mroute）
+# ===============================
+
+Switch1(config)# ! マルチキャストソース 239.1.1.0/24 の RPF を手動設定
+Switch1(config)# ip mroute 239.1.1.0 255.255.255.0 GigabitEthernet1/0/2 10.1.1.1
+
+Switch1(config)# ! ソース 10.10.10.10 のマルチキャスト RPF を Loopback0 に固定
+Switch1(config)# ip mroute 10.10.10.10 255.255.255.255 Loopback0 192.168.1.1
+
+Switch1(config)# ! PIM ドメインを跨ぐための静的 mroute
+Switch1(config)# ip mroute 232.0.0.0 255.0.0.0 GigabitEthernet1/0/3 172.16.5.2
+
+
+# ===============================
+# PIM（Sparse / Dense / Sparse-Dense）
+# ===============================
+
+Switch1(config-if)# ! インターフェイスで PIM Sparse Mode を有効化
+Switch1(config-if)# ip pim sparse-mode
+
+Switch1(config-if)# ! PIM Dense Mode を有効化
+Switch1(config-if)# ip pim dense-mode
+
+Switch1(config-if)# ! Sparse-Dense Mode を有効化
+Switch1(config-if)# ip pim sparse-dense-mode
+
+
+# ===============================
+# IGMP（Multicast Group Membership）
+# ===============================
+
+Switch1(config-if)# ! IGMP を有効化
+Switch1(config-if)# ip igmp version 3
+
+Switch1(config-if)# ! IGMP クエリアを手動設定
+Switch1(config-if)# ip igmp querier 10.1.1.1
+
+Switch1(config-if)# ! IGMP Snooping を有効化
+Switch1(config)# ip igmp snooping
+
+
+# ===============================
+# MSDP（Multicast Source Discovery Protocol）
+# ===============================
+
+Switch1(config)# ! MSDP ピアを設定
+Switch1(config)# ip msdp peer 10.2.2.2 connect-source Loopback0
+
+
+# ===============================
+# SSM（Source Specific Multicast）
+# ===============================
+
+Switch1(config)# ! SSM レンジを指定
+Switch1(config)# ip pim ssm range 232.0.0.0 255.0.0.0
+
+
+# ===============================
+# Multicast 状態確認
+# ===============================
+
+Switch1# ! マルチキャストルーティングテーブルを確認
+Switch1# show ip mroute
+
+Switch1# ! PIM 隣接を確認
+Switch1# show ip pim neighbor
+
+Switch1# ! IGMP グループを確認
+Switch1# show ip igmp groups
+
+Switch1# ! MSDP 状態を確認
+Switch1# show ip msdp peer
 ```
