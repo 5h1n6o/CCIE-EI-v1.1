@@ -753,4 +753,23 @@ Switch1# show ip local policy
 
 Switch1# ! route-map の内容を確認
 Switch1# show route-map PBR-MAP
+
+# ===============================
+# IPv6 PBR（Policy-Based Routing）
+# ===============================
+
+Switch1(config)# ! IPv6 ACL を作成
+Switch1(config)# ipv6 access-list IPV6-PBR-ACL
+Switch1(config-ipv6-acl)# permit ipv6 any 2001:db8:2001:1760::/32
+
+Switch1(config)# ! Route-map を作成
+Switch1(config)# route-map IPV6-PBR permit 10
+Switch1(config-route-map)# match ipv6 address IPV6-PBR-ACL
+Switch1(config-route-map)# set ipv6 next-hop 2001:db8:2003:1::95
+
+Switch1(config-if)# ! インターフェイスに PBR を適用
+Switch1(config-if)# ipv6 policy route-map IPV6-PBR
+
+Switch1(config)# ! Local PBR を有効化
+Switch1(config)# ipv6 local policy route-map IPV6-PBR
 ```
