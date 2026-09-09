@@ -935,3 +935,107 @@ Switch1# show ip igmp groups
 Switch1# ! MSDP 状態を確認
 Switch1# show ip msdp peer
 ```
+
+#### IPv6 Routing
+
+```md
+# ===============================
+# IPv6 Routing の有効化
+# ===============================
+
+Switch1(config)# ! IPv6 Unicast Routing を有効化
+Switch1(config)# ipv6 unicast-routing
+
+
+# ===============================
+# IPv6 アドレス設定（Global / Link-local / EUI-64）
+# ===============================
+
+Switch1(config-if)# ! IPv6 Global Unicast を手動設定
+Switch1(config-if)# ipv6 address 2001:db8:1::1/64
+
+Switch1(config-if)# ! EUI-64 による自動生成
+Switch1(config-if)# ipv6 address 2001:db8:1::/64 eui-64
+
+Switch1(config-if)# ! Link-local アドレスを手動設定
+Switch1(config-if)# ipv6 address fe80::1 link-local
+
+Switch1(config-if)# ! IPv6 を有効化（リンクローカル自動生成）
+Switch1(config-if)# ipv6 enable
+
+
+# ===============================
+# IPv4/IPv6 Dual Stack
+# ===============================
+
+Switch1(config-if)# ! IPv4 と IPv6 の両方を設定
+Switch1(config-if)# ip address 10.1.2.3 255.255.255.0
+Switch1(config-if)# ipv6 address 2001:db8:1::/64 eui-64
+
+
+# ===============================
+# IPv6 Router Advertisement（RDNSS / DNSSL）
+# ===============================
+
+Switch1(config-if)# ! RDNSS（DNS サーバ）を RA で通知
+Switch1(config-if)# ipv6 nd ra dns server 2001:db8::53 1000 sequence 1
+
+Switch1(config-if)# ! DNSSL（DNS サフィックス）を通知
+Switch1(config-if)# ipv6 nd ra dns search-list example.com 100 sequence 1
+
+
+# ===============================
+# Default Router Preference（DRP）
+# ===============================
+
+Switch1(config-if)# ! DRP を High に設定
+Switch1(config-if)# ipv6 nd router-preference high
+
+
+# ===============================
+# IPv6 ICMP Rate Limiting
+# ===============================
+
+Switch1(config)# ! ICMPv6 エラーレートを調整（50ms / bucket 20）
+Switch1(config)# ipv6 icmp error-interval 50 20
+
+
+# ===============================
+# IPv6 Static Route
+# ===============================
+
+Switch1(config)# ! IPv6 静的ルート（次ホップ指定）
+Switch1(config)# ipv6 route 2001:db8:100::/48 2001:db8:1::254
+
+Switch1(config)# ! IPv6 静的ルート（出口インターフェイス指定）
+Switch1(config)# ipv6 route 2001:db8:200::/48 GigabitEthernet1/0/1
+
+Switch1(config)# ! リンクローカル次ホップ（interface-id 必須）
+Switch1(config)# ipv6 route 2001:db8:300::/48 GigabitEthernet1/0/2 fe80::2
+
+# ===============================
+# IPv6 Neighbor Discovery（NDP）
+# ===============================
+
+Switch1# ! IPv6 Neighbor Cache を確認
+Switch1# show ipv6 neighbors
+
+
+# ===============================
+# IPv6 Interface 状態確認
+# ===============================
+
+Switch1# ! IPv6 インターフェイスの状態を確認
+Switch1# show ipv6 interface GigabitEthernet1/0/1
+
+
+# ===============================
+# IPv6 Routing Table
+# ===============================
+
+Switch1# ! IPv6 ルーティングテーブルを確認
+Switch1# show ipv6 route
+
+Switch1# ! IPv6 Static Route の詳細確認
+Switch1# show ipv6 static detail
+```
