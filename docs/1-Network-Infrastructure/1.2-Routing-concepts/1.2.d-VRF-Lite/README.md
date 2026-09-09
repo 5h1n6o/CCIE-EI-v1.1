@@ -237,6 +237,8 @@ ip source-interface logging Loopback99  ! Loopback99もMGMTに所属している
 
 ---
 
+*   [VRF, MPLS and MP-BGP Fundamentals - BRKCRT-2601](chrome-extension://oemmndcbldboiebfnladdacbdfmadadm/https://www.ciscolive.com/c/dam/r/ciscolive/emea/docs/2024/pdf/BRKCRT-2601.pdf)
+
 
 ## 📝 補足
 
