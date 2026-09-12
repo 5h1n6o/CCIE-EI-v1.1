@@ -6,290 +6,586 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 5
 ---
 
-# 1.3.e EIGRP Optimization, Convergence, and Scalability
+# 1.3.e Optimization, convergence, and scalability
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.3 EIGRP」における「1.3.e Optimization, convergence, and scalability」について整理しました。
+本ページでは、CCIE Enterprise Infrastructure (EI) v1.1 Practical Lab 試験および筆記試験における EIGRP のスケーラビリティ、最適化、および高速コンバージエンスの核心技術である **1.3.e (i) Query propagation boundaries（クエリ拡散境界）**, **1.3.e (ii) Leak-map with summary routes（サマリルートにおけるリークマップ）**, **1.3.e (iii) EIGRP stub with leak map（EIGRP スタブにおけるリークマップ）** について、Cisco IOS-XE 17.x の実装基準に完全準拠して解説します。
 
 ---
 
 ## 📘 概要
 
-**EIGRPの最適化、コンバージェンス、およびスケーラビリティ**は、大規模なエンタープライズネットワークにおいて、プロトコルの安定性を維持するための最重要トピックです。EIGRPはDUAL（Diffusing Update Algorithm）アルゴリズムにより、最適パス（Successor）の消失時にバックアップパス（Feasible Successor）があれば即座に切り替わりますが、バックアップが存在しない場合、ネットワーク全体に **Query（問い合わせ）パケット** を送信して代替パスを探します。
+EIGRP（Enhanced Interior Gateway Routing Protocol）は、リンク障害時や経路喪失時に DUAL（Diffusing Update Algorithm）を起動し、バックアップ経路（Feasible Successor）が存在しない場合、ネイバーに対して **Query（問い合わせ）パケット** をマルチキャスト/ユニキャストで送出して代替経路を検索します。
 
-このQueryプロセスは、ネットワークが巨大化・複雑化すると **SIA (Stuck-in-Active)** 状態を引き起こし、隣接関係の不必要な切断やコンバージェンスの遅延を招く原因となります。CCIEレベルでは、**「Query伝播境界（Query Propagation Boundaries）」** を意図的に設計・構築し、不要なパケットの拡散を抑える能力が問われます。これには、ルートの集約（Summarization）、Stubルータの構成、およびこれらに例外を設ける Leak-map の高度な活用が含まれます。
+しかし、大規模なエンタープライズネットワークやハブ＆スポーク網（DMVPN等）において Query パケットが全ネットワークへ無制限に拡散すると、以下の深刻な問題が発生します。
+
+1. **ネットワーク帯域と CPU 資源の浪費（Query Storm）**
+2. **SIA（Stuck-In-Active）状態の誘発:** 深遠なネットワークの先にある1台のルータが応答（Reply）を返さないだけで、元のルータが 180 秒間待ち続け、正常なネイバーアジャセンシーまでもが切断される。
+3. **不要なルーティングテーブルの増大:** 端末収容ルータに全社の詳細ルートが維持され、メモリとコントロールプレーンを圧迫する。
+
+制限無く拡がる Query を適切な境界で遮断し、ミリ秒〜サブ秒単位の高速コンバージエンスと優れた拡張性（Scalability）を実現するために不可欠なのが、**クエリ拡散境界（Query Propagation Boundaries）の設計**、**手動ルート集約と Leak-Map 制御**、および **EIGRP Stub と Leak-Map の組み合わせ** です。
 
 ---
 
 ## 🔑 要点
 
-### 1. Query伝播境界 (Query Propagation Boundaries)
-
-EIGRPルータが「Active」状態になり、ネイバーにQueryを送信した際、その伝播を止める「壁」の役割を果たすのが境界設計です。
-
-| 手法 | 動作原理 | 効果 |
-| :--- | :--- | :--- |
-| **Summarization** | 特定の境界で詳細ルートを集約して広報する。 | 集約ルートの範囲内のより詳細なルートが消失しても、ルータはその境界を超えてQueryを送信しません。 |
-| **EIGRP Stub** | ルータをStub（末端）として設定し、ハブに通知する。 | ハブルーバは、Stubルータが「代替パスを持っていない」ことを事前に把握するため、スポーク（Stub）にQueryを送信しません。 |
-
-### 2. ルート集約と Leak-map (Leak-map with Summary Routes)
-
-手動集約（Manual Summarization）を行うと、そのインターフェイスからは集約されたプレフィックスのみが送信され、詳細なプレフィックスは抑制されます。
-*   **Leak-map:** 集約を行いながらも、特定の詳細ルートだけを「漏らして（Leak）」広報する機能です。
-*   **用途:** 拠点の経路を集約してコアのRIBを節約しつつ、特定のサーバセグメントだけはトラフィックエンジニアリングのために詳細情報を残したい場合に使用します。
-
-### 3. EIGRP Stub と Leak-map (EIGRP Stub with Leak-map)
-
-EIGRP Stubはデフォルトで「connected」と「summary」を広報しますが、これに `leak-map` を組み合わせることで、Stubの制限を維持しつつ特定の経路（例：再配送されたルート）を追加で許可できます。
-*   **動作:** Stub設定によりQueryの受信を拒否しつつ、本来なら広報されないはずのルートを対向に伝えることが可能です。
-
----
-
-## 🎯 試験対策 (CCIE EIレベル)
-
-CCIEラボ試験では、ネットワークの安定化と特定の到達性要件を両立させる「制約付きの最適化」が問われます。
-
-### 1. SIA (Stuck-in-Active) の防止
-
-*   大規模トポロジにおいて、一部のルータがSIAに陥るシナリオがトラブルシューティングとして出題されます。
-*   **対策:** 適切なポイントでの `ip summary-address` 設定や、拠点への `eigrp stub` 適用によりQueryの拡散を止め、Replyの待機時間を短縮します。
-
-### 2. Manual Summarization の実装場所
-
-*   Classic Modeではインターフェイス配下、Named Modeでは `af-interface` 配下で設定します。
-*   **注意:** 集約を設定すると、自動的に `Null0` への経路が生成され、ルーティングループを防止します。ラボでは、この `Null0` 経路の影響（特定のパケットが破棄される等）を考慮する必要があります。
-
-### 3. Stub オプションの使い分け
-
-試験要件に応じて、適切なStubオプションを選択する能力が必要です。
-*   `receive-only`: 自身のルートを一切広告しない。
-*   `connected`: 直結ルートのみ広告。
-*   `static`: スタティックルートのみ広告。
-*   `summary`: 集約ルートのみ広告。
-*   `redistributed`: 再配送されたルートのみ広告。
-
-### 4. 最小コマンド数での実装
-
-*   Named Modeにおいて `af-interface default` を使用して一括で設定を適用し、特定のインターフェイスのみ例外を作る手法は、解答の簡潔さを求める問題で有効です。
-
----
-
-## 🛠 設定・検証コマンド
-
-### 設定コマンド
-
-| 目的 | コマンド |
+| 項目 | 内容 |
 | :--- | :--- |
-| **Classic: インターフェイス集約** | <code>(config-if)# ip summary-address eigrp [AS] [IP] [MASK]</code> |
-| **Named: インターフェイス集約** | <code>(config-router-af-interface)# summary-address [IP] [MASK]</code> |
-| **集約ルートへの Leak-map 適用** | <code>summary-address [IP] [MASK] leak-map [MAP_NAME]</code> |
-| **Stub構成の有効化(標準)** | <code>(config-router)# eigrp stub connected summary</code> |
-| **Stub構成への Leak-map 適用** | <code>(config-router)# eigrp stub leak-map [MAP_NAME]</code> |
-
-### 検証・トラブルシューティング
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **Active状態のルート(SIA調査)** | <code>show ip eigrp topology active</code> |
-| **Stub状態の確認(ネイバー側)** | <code>show ip eigrp neighbors detail</code> |
-| **集約ルートの広告状況確認** | <code>show ip eigrp interfaces detail [ID]</code> |
-| **Query/Replyの統計確認** | <code>show ip eigrp traffic</code> |
-| **イベントログの確認(SIAログ)** | <code>show ip eigrp events</code> |
+| **対象技術** | Query Propagation Boundaries, Leak-Map with Summary Routes, EIGRP Stub with Leak Map |
+| **用途** | クエリ範囲の限定、SIA（Stuck-In-Active）の根本排除、集約環境/スタブ環境における特定個別ルートの選択的リーク |
+| **メリット** | ① クエリの拡散を境界ルータで物理的に遮断（即座に Unreachable Reply を返却）。<br>② クエリ応答遅延によるネイバー切断（SIA）を回避。<br>③ 集約経路やスタブ経路の配下にある特定のサーバ・ループバック等へピンポイントでトラフィックを誘導。 |
+| **デメリット** | Leak-Map の ACL/Prefix-List/Route-Map 定義が複雑化し、設定ミスによりルーティングループや非対称ルーティングが生じるリスクがある。 |
+| **主な制御手法** | ① **EIGRP Stub Router:** 対向ルータに「自分はトランジットルータではない」と通知し、クエリ対象から完全除外させる。<br>② **Manual Summarization:** 集約ポイントでクエリの拡散をストップさせる。<br>③ **Leak-Map 結合:** サマリ経路やスタブ制限を維持しつつ、特定のプレフィックスのみ例外的にアドバタイズする。 |
+| **設計上の注意点** | Leak-Map で参照する Route-Map 内で `match ip address prefix-list` を定義する際、`permit` エントリで指定されたプレフィックスのみが「リーク（例外送信）」される。 |
 
 ---
 
-## 🛠 ラボ学習・設定サンプル例
+## 🏗 動作原理
 
-Query制御とコンバージェンス最適化に焦点を当てた12個の実装例を提示します。
+### 1. クエリ拡散境界（Query Propagation Boundaries）の仕組み
 
-### 1. 基本的な EIGRP Stub による Query 抑制
+DUAL が Query を送信した際、受信したルータが該当ルートの代替えを持っていなければ、さらにその先のネイバーへと Query を転播（Flood）します。クエリの拡大を抑止する「壁（Boundary）」となるのが以下の要素です。
 
-**【問題内容】**
-ハブルータ R1 とスポークルータ R2 の間で EIGRP AS 100 を動作させている。R2 を Stub ルータとして構成し、R1 が R2 に対して代替パスの問い合わせ (Query) を送信しないようにせよ。
+```text
+[ Route Lost ] ──► ( R1 ) ── Query ──► ( R2: Boundary ) ── X (No Query Sent)
+                                              │
+                                   [ Instant Reply: Unreachable ]
+```
 
-**【設定サンプル】**
-```ios
-! R2 スポークルータ側
-router eigrp 100
- ! 直結ルートと集約ルートのみ広報し、Queryを受け取らない
- eigrp stub connected summary
+* **手動サマリルート（Summary Route）の配置:**
+  R2 が R1 に対して `10.1.0.0/16` というサマリルートを広告している場合、`10.1.5.0/24` が失われて R1 から R2 へ Query が届くと、R2 は即座に「10.1.5.0/24 は知らない（Unreachable）」という Reply を返します。R2 から先へ Query は一切拡散しません。
+* **EIGRP Stub ルータの定義:**
+  R2 が Stub ルータとして動作している場合、ネイバー接続（Init 段階）時に「Stub である」属性を R1 へ通知します。R1 はトポロジー変化が発生しても、Stub ルータである R2 には**最初から Query パケット自体を送信しません**。
+
+---
+
+### 2. サマリルートにおける Leak-Map の動作原理
+
+通常、`summary-address 10.1.0.0 255.255.0.0` を設定すると、配下の `10.1.1.0/24`, `10.1.2.0/24` 等の個別明細ルート（Component Routes）はすべて抑制（Suppress）され、サマリルートのみが送信されます。
+
+しかし、「マルチホーム環境で特定サイトへのトラフィックを最適パスへ誘導したい」「特定のDNS/NTPサーバ（/32）だけは明細で広報したい」という要件が発生した場合に **Leak-Map** を結合します。
+
+```text
+[ Component Routes: 10.1.1.0/24, 10.1.2.0/24, 10.1.100.1/32 ]
+                             │
+            [ Summary Address: 10.1.0.0/16 ]
+                             │
+            [ Leak-Map: Permit 10.1.100.1/32 ]
+                             │
+                             ▼
+[ Advertised Routes: 10.1.0.0/16 AND 10.1.100.1/32 (Leaked!) ]
 ```
 
 ---
 
-### 2. Leak-Map を使用した特定のサブネットの個別広報 (Named Mode)
+### 3. EIGRP Stub with Leak-Map の動作原理
 
-**【問題内容】**
-R1において `10.0.0.0/8` の集約ルートを `GigabitEthernet0/1` から広報せよ。ただし、重要なサーバセグメントである `10.1.50.0/24` だけは集約に含めず、詳細ルートとして個別に広報せよ。
+EIGRP Stub ルータは、デフォルトで `connected` および `summary` 経路のみを広報し、他のルータから学習した IGP 経路や再配送経路のトランジット（中継）を一切遮断します。
 
-**【設定サンプル】**
-```ios
-! 漏らしたいルートを定義
-ip prefix-list P-SERVER permit 10.1.50.0/24
+しかし、スタブ配下に接続された特定の再配送経路や、特定のサマリルート配下の特定サブネットだけを上流へ伝えたい場合、`eigrp stub` コマンドに `leak-map` を結合します。
+
+```text
+( Spoke Router / Stub )
+   │  ├─ Connected: 10.2.1.0/24
+   │  ├─ Static/Redistributed: 172.16.1.0/24  <── Normally Blocked by Stub!
+   │  └─ Leak-Map: Permits 172.16.1.0/24
+   │
+   └──────► Advertises: Connected + 172.16.1.0/24 (Leaked Route) to Hub
+```
+
+---
+
+## ⚙ 動作シーケンス
+
+### Leak-Map 評価シーケンス（サマリおよびスタブ共通）
+
+1. **パケット生成 / ルート広報のトリガー:**
+   EIGRP プロセスが隣接ルータへ Update パケットを生成します。
+2. **Summary または Stub 条件の評価:**
+   インターフェイスに `summary-address` が設定されているか、またはグローバル/AF配下で `eigrp stub` が有効化されているかをチェックします。
+3. **Leak-Map (Route-Map) の検索:**
+   `leak-map <MAP_NAME>` が指定されている場合、定義された Route-Map を参照します。
+4. **ACL / Prefix-List とのマッチング:**
+   Route-Map 内の `match ip address prefix-list <LIST>` を評価します。
+   * `permit` に合致したプレフィックス: サマリー抑止またはスタブ制限を免除され、**明細ルートとして Update パケットに追加送出**されます。
+   * `deny` または未マッチのプレフィックス: 通常通りサマリー抑止またはスタブ制限が適用され、広報されません。
+
+---
+
+## 🎯 試験対策（CCIE EIラボ試験）
+
+### 1. ラボ試験での最頻出要件パターン
+
+CCIE EI Practical Lab 試験では、以下のような「一見矛盾する要件」を提示して技術力を試してきます。
+
+* **課題例 1 (Summary + Leak-Map):**
+  「R1 は R2 に対して `10.1.0.0/16` のサマリルートのみを広報すること。ただし、最適ルーティングを維持するため、`10.1.50.0/24` のみは明細ルートとしても同時に広報しなければならない。追加の Filter コマンドや ACL による否定は不可とする。」
+* **課題例 2 (Stub + Leak-Map):**
+  「R3（Spokeルータ）を EIGRP Stub ルータとして設定し、クエリの受信を完全に遮断せよ。ただし、R3 上で OSPF から EIGRP へ再配送されている `192.168.100.0/24` の経路のみは、Hub ルータへ正常に広報されるように設定せよ。」
+
+### 2. よくある設定ミスとハマりポイント
+
+1. **Route-Map 内の `permit` / `deny` と Prefix-List 内の `permit` / `deny` の混同:**
+   * **正解:** Prefix-List で `permit 10.1.50.0/24` を記述し、Route-Map でも `permit 10` でその Prefix-List を `match` させる。
+   * **ミス:** Prefix-List や Route-Map で `deny` を書いてしまい、リークさせたい経路が正しく抽出されずブロックされる。
+2. **Classic Mode と Named Mode での構文・階層の違い:**
+   * **Classic Mode (Summary Leak-Map):**
+     `interface GigabitEthernet0/1` 配下で `ip summary-address eigrp 100 10.1.0.0 255.255.0.0 leak-map LEAK_MAP`
+   * **Named Mode (Summary Leak-Map):**
+     `router eigrp FABRIC` ➔ `address-family ipv4 unicast autonomous-system 100` ➔ `af-interface GigabitEthernet0/1` 配下で `summary-address 10.1.0.0 255.255.0.0 leak-map LEAK_MAP`
+   * **Named Mode (EIGRP Stub with Leak-Map):**
+     `router eigrp FABRIC` ➔ `address-family ipv4 unicast autonomous-system 100` 直下の AF モード配下（`eigrp stub leak-map LEAK_MAP`）で設定（`topology base` 配下ではない点に極めて注意！）。
+
+---
+
+## 🛠 設定方法
+
+### 1. Summary Route with Leak-Map (Named Mode)
+
+```bash
+# 1. 抽出用 Prefix-List の作成
+ip prefix-list PLIST_LEAK permit 10.1.50.0/24
+
+# 2. リーク制御用 Route-Map の作成
+route-map RMAP_LEAK permit 10
+ match ip address prefix-list PLIST_LEAK
 !
-route-map RM-LEAK permit 10
- match ip address prefix-list P-SERVER
-!
-router eigrp CCIE
+
+# 3. EIGRP Named Mode 配下でのサマリー＆リークマップ設定
+router eigrp CCIE_FABRIC
+ !
  address-family ipv4 unicast autonomous-system 100
   af-interface GigabitEthernet0/1
-   ! 集約を設定し、例外としてLeak-mapを適用
-   summary-address 10.0.0.0 255.0.0.0 leak-map RM-LEAK
-```
-
----
-
-### 3. Stub ルータからの再配送ルートの許可 (EIGRP Stub Redistributed)
-
-**【問題内容】**
-スポークルータ R3 において、OSPF から EIGRP へルートを再配送している。R3 を Stub として構成しつつ、この再配送されたルートをハブルータに伝えられるようにせよ。
-
-**【設定サンプル】**
-```ios
-router eigrp 100
- ! デフォルトのconnected/summaryに加え、再配送ルートの広報を許可
- eigrp stub connected summary redistributed
- redistribute ospf 1 metric 10000 10 255 1 1500
-```
-
----
-
-### 4. Stub Leak-Map による高度な例外制御
-
-**【問題内容】**
-R4 を Stub ルータとして設定せよ。通常、Stub ルータは `static` ルートを広報しない設定であるが、特定のタグ `999` が付いたスタティックルートのみを例外的に広報せよ。
-
-**【設定サンプル】**
-```ios
-route-map RM-STUB-EXCEPT permit 10
- match tag 999
-!
-router eigrp 100
- ! Stub設定の中でLeak-mapを指定して例外を許可
- eigrp stub connected summary leak-map RM-STUB-EXCEPT
-```
-
----
-
-### 5. DMVPN 環境における Split-Horizon の無効化と集約
-
-**【問題内容】**
-DMVPN ハブルータ R5 において、スポーク間の通信を可能にするため、トンネルインターフェイスで Split-Horizon を無効化し、さらに全スポークに対しデフォルトルートのみを送信してルーティングテーブルを最適化せよ。
-
-**【設定サンプル】**
-```ios
-interface Tunnel0
- ! EIGRPのSplit-Horizonを無効化
- no ip split-horizon eigrp 100
- ! デフォルトルートへの集約
- ip summary-address eigrp 100 0.0.0.0 0.0.0.0
-```
-
----
-
-### 6. Summary Route を用いた「最後のリゾート」の作成 (Floating Default)
-
-**【問題内容】**
-メインのインターネット境界 R1 がダウンした際のバックアップとして、R2 から EIGRP ドメイン内にデフォルトルートを集約によって注入せよ。ただし、このデフォルトルートはメインの経路よりも優先順位を下げること。
-
-**【設定サンプル】**
-```ios
-interface GigabitEthernet0/1
- ! AD値を 200 に設定してフローティングさせる
- ip summary-address eigrp 100 0.0.0.0 0.0.0.0 200
-```
-
----
-
-### 7. Named Mode での「Receive-Only」Stub の構成
-
-**【問題内容】**
-セキュリティ上の理由から、R6 は隣接関係を維持するが、自身の配下のネットワーク情報をネイバーに一切教えてはならない。
-
-**【設定サンプル】**
-```ios
-router eigrp KBITS
- address-family ipv4 unicast autonomous-system 100
-  ! 自身からは何も広報しないモード
-  eigrp stub receive-only
-```
-
----
-
-### 8. 集約による SIA 発生ルータの特定と修正
-
-**【問題内容】**
-ネットワークの一部でルートが Active 状態のまま Reply が戻らず、隣接関係がリセットされている。R1 (ABR相当) で集約を適切に行い、問題の切り分けと Query 範囲の制限を行え。
-
-**【検証・修正】**
-```ios
-! SIA発生の確認
-R1# show ip eigrp topology active
-! 修正：適切な集約ポイントを設定
-interface GigabitEthernet0/1
- ip summary-address eigrp 100 172.16.0.0 255.255.0.0
-```
-
----
-
-### 9. Multi-AF 環境での IPv6 Stub 構成
-
-**【問題内容】**
-IPv6 EIGRP 環境において、スポークルータ R7 を Stub として構成し、直結の IPv6 プレフィックスのみを広報させよ。
-
-**【設定サンプル】**
-```ios
-ipv6 router eigrp 100
- eigrp stub connected
-```
-
----
-
-### 10. Summary-Metric を用いた集約ルートの属性操作
-
-**【問題内容】**
-R8 において `192.168.0.0/16` を集約して広報する際、そのメトリック情報を固定（帯域幅 1Gbps）にし、詳細ルートのメトリック変化が集約ルートに影響を与えないようにせよ。
-
-**【設定サンプル (Named Mode)】**
-```ios
-router eigrp CCIE
- address-family ipv4 unicast autonomous-system 100
+   summary-address 10.1.0.0 255.255.0.0 leak-map RMAP_LEAK
+  exit-af-interface
+  !
   topology base
-   ! 集約ルートに特定のメトリックを強制する
-   summary-metric 192.168.0.0/16 distance 90 bandwidth 1000000 delay 10 reliability 255 load 1 mtu 1500
+  exit-af-topology
+  !
+  network 10.1.0.0 0.0.255.255
+ exit-address-family
+```
+
+### 2. EIGRP Stub with Leak-Map (Named Mode)
+
+```bash
+# 1. リーク対象経路（例: 再配送ルート 172.16.10.0/24）の Prefix-List 作成
+ip prefix-list PLIST_STUB_LEAK permit 172.16.10.0/24
+
+# 2. Route-Map 作成
+route-map RMAP_STUB_LEAK permit 10
+ match ip address prefix-list PLIST_STUB_LEAK
+!
+
+# 3. EIGRP Named Mode での Stub Leak-Map 設定
+router eigrp CCIE_FABRIC
+ !
+ address-family ipv4 unicast autonomous-system 100
+  # AF 直下モードで stub leak-map を指定
+  eigrp stub leak-map RMAP_STUB_LEAK
+  !
+  af-interface GigabitEthernet0/1
+   no passive-interface
+  exit-af-interface
+  !
+  topology base
+   redistribute static
+  exit-af-topology
+  !
+  network 10.1.12.0 0.0.0.255
+ exit-address-family
 ```
 
 ---
 
-### 11. プレフィックス学習数の制限 (Scalability Protection)
+## 🔍 検証コマンド
 
-**【問題内容】**
-特定のネイバーから学習するルート数が 100 を超えた場合、そのネイバーとのセッションを自動的に切断してルータのリソース（メモリ）を保護せよ。
-
-**【設定サンプル】**
-```ios
-router eigrp 100
- ! 最大100個に制限。超過時に警告(warning-only)なしで切断
- distribute-list maximum-prefix 100
-```
+| 目的 | コマンド |
+| :--- | :--- |
+| **EIGRP ネイバーの Stub フラグ状態（対向が Stub かどうか）の確認** | <code>show ip eigrp neighbors detail</code> / <code>show eigrp address-family ipv4 neighbors detail</code> |
+| **自ルータの Stub 動作モードおよび Leak-Map 適用状態の確認** | <code>show ip protocols</code> / <code>show eigrp address-family ipv4 protocols</code> |
+| **特定インターフェイスで送信されているサマリルートと Leak-Map 名の確認** | <code>show eigrp address-family ipv4 interfaces detail</code> |
+| **トポロジーテーブル上での Leak 経路の掲載確認** | <code>show ip eigrp topology</code> |
+| **対向ルータでの受送信経路（サマリ＋リーク経路）の確認** | <code>show ip route eigrp</code> |
 
 ---
 
-### 12. Hello/Hold Timers の微調整による高速障害検知
+## 🚨 トラブルシュート
 
-**【問題内容】**
-特定の高信頼性リンクにおいて、障害検知を 1秒以内に行うため、Hello 間隔を 200ms、Hold タイムを 1秒に変更せよ。
+| 症状 | 原因 | 確認コマンド | 対処方法 |
+| :--- | :--- | :--- | :--- |
+| **サマリルートは送信されているが、Leak-Map で指定した個別ルートが対向に届かない。** | 1. Prefix-List の指定ミス（IP やマスクの不一致）。<br>2. Route-Map 内の `match ip address` で指定した Prefix-List 名のタイポ。<br>3. 該当の明細ルート自体がローカル RIB / DUAL テーブルに存在していない。 | `show ip prefix-list`<br>`show route-map`<br>`show ip eigrp topology` | 1. Prefix-List と Route-Map の紐付けを確認。<br>2. リーク対象の明細ルートが自ルータの DUAL トポロジーテーブルに Active/Passive で存在しているか確認する。 |
+| **`eigrp stub leak-map` を設定したのに、再配送経路が全く送信されない。** | Route-Map 内で `match ip address` ではなく `match route-type` 等を誤用しているか、または Prefix-List が `deny` になっている。 | `show route-map`<br>`show ip protocols` | Route-Map 内の `match` 条件を Prefix-List による明示的な `permit` に変更する。 |
+| **EIGRP Stub を設定した後に全ルートが消失した。** | `eigrp stub` コマンドで `connected` や `summary` などの標準オプションを指定せず、誤った引数のみを投入した。 | `show ip protocols` | 通常 `eigrp stub` はデフォルトで `connected summary` になりますが、`leak-map` 使用時もこの基本動作が維持されているか確認する。 |
 
-**【設定サンプル (Named Mode)】**
-```ios
-router eigrp CCIE
+---
+
+## ⚠ 制限事項
+
+1. **Leak-Map 適用時の CPU / メモリ消費:**
+   大量のプレフィックスに対して動的に Leak-Map を評価する場合、コントロールプレーンの処理オーバーヘッドがわずかに増加します。
+2. **Null0 ディスカードルートの自動生成:**
+   `summary-address` を設定すると、自ルータ内に Administrative Distance (AD) 5 の Null0 宛てルートが自動生成されます。Leak-Map で明細をリークさせても、この Null0 ルートは削除されません。
+
+---
+
+## 🔄 他技術との関連
+
+* **DMVPN (Dynamic Multipoint VPN):**
+  Spoke ルータ群を `eigrp stub` 化することで、Hub ルータからの Query 拡散を物理的に遮断し、WAN 全体のコンバー全速度を最大化します。特定 Spoke 配下のサブネットのみを全社へ伝えるために `leak-map` を併用します。
+* **Route Redistribution（相互再配送）:**
+  他の IGP や BGP から EIGRP へ再配送された経路を Stub 環境下で部分的に上流へ広告する際、`eigrp stub redistributive` または `eigrp stub leak-map` が使用されます。
+
+---
+
+## 🧩 比較表
+
+### Query 制御手法の比較
+
+| 手法 | 動作メカニズム | クエリ遮断効果 | 特定経路の例外送信 |
+| :--- | :--- | :--- | :--- |
+| **EIGRP Stub** | ネイバーへ Stub 属性を通知し、対向からの クエリ送信自体を抑止 | **完全遮断** (Query が最初から飛んでこない) | `leak-map` を結合することで可能 |
+| **Manual Summary** | サマリー境界で明細への Query に対し即座に Unreachable Reply を返却 | **境界で遮断** (サマリ位置で Reply 返却) | `leak-map` を結合することで可能 |
+| **Passive Interface** | Hello/Query 含む全 EIGRP パケットの送受信を停止 | **完全停止** (ネイバー自体が形成されない) | 不可 |
+
+---
+
+## 💡 ベストプラクティス
+
+1. **ハブ＆スポーク構成での全 Spoke ルータ Stub 化:**
+   DMVPN や リモート拠点ルータ（Spoke）は 100% `eigrp stub` として構成し、Query Storm と SIA を未然に防止する。
+2. **Summary Address 適用時の Leak-Map による非対称回避:**
+   マルチホーム環境でサマリルートを引く場合は、特定回線へトラフィックを誘導するために適切な Leak-Map を設計し、非対称ルーティングによるドロップを防ぐ。
+
+---
+
+## 📝 ラボ学習・設定サンプル例
+
+以下は、CCIE EI ラボ試験レベルに対応する省略なしの 10 個の演習シナリオです。
+
+### Scenario 1: Summary Route with Leak-Map 基本設定 (Named Mode)
+* **要件:** R1 は Gi0/1 配下に `10.1.0.0/16` のサマリルートを広報せよ。ただし、`10.1.100.0/24` の明細ルートのみは同時にリーク（広告）させよ。
+
+**【R1】**
+```bash
+ip prefix-list PL_LEAK1 permit 10.1.100.0/24
+!
+route-map RM_LEAK1 permit 10
+ match ip address prefix-list PL_LEAK1
+!
+router eigrp FABRIC
+ !
  address-family ipv4 unicast autonomous-system 100
   af-interface GigabitEthernet0/1
-   hello-interval 1
-   hold-time 3
-   ! ※ピコ秒単位のWide Metric環境下ではBFDの併用が一般的
+   summary-address 10.1.0.0 255.255.0.0 leak-map RM_LEAK1
+  exit-af-interface
+  !
+  topology base
+  exit-af-topology
+  !
+  network 10.1.0.0 0.0.255.255
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R2# show ip route eigrp
+# 10.1.0.0/16 と 10.1.100.0/24 の両方が RIB に掲載されていることを確認
 ```
 
 ---
+
+### Scenario 2: EIGRP Stub with Leak-Map (再配送経路の個別リーク)
+* **要件:** R3 を EIGRP Stub ルータとして構成し、クエリ拡散を防止せよ。ただし、Static から再配送された `172.16.50.0/24` のみは例外的に Hub へ広告せよ。
+
+**【R3】**
+```bash
+ip route 172.16.50.0 255.255.255.0 Null0
+!
+ip prefix-list PL_STUB_LEAK2 permit 172.16.50.0/24
+!
+route-map RM_STUB_LEAK2 permit 10
+ match ip address prefix-list PL_STUB_LEAK2
+!
+router eigrp FABRIC
+ !
+ address-family ipv4 unicast autonomous-system 100
+  eigrp stub leak-map RM_STUB_LEAK2
+  !
+  af-interface GigabitEthernet0/1
+   no passive-interface
+  exit-af-interface
+  !
+  topology base
+   redistribute static
+  exit-af-topology
+  !
+  network 10.3.0.0 0.0.255.255
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1(Hub)# show ip route 172.16.50.0
+# Hub 側で 172.16.50.0/24 が EIGRP 外部ルート (D EX) として受信されていることを確認
+```
+
+---
+
+### Scenario 3: Multiple Leaked Prefixes with Leak-Map
+* **要件:** `10.2.0.0/16` のサマリルートから、`10.2.10.0/24` および `10.2.20.0/24` の 2 つの明細ルートを同時にリークさせよ。
+
+**【R1】**
+```bash
+ip prefix-list PL_MULTI_LEAK permit 10.2.10.0/24
+ip prefix-list PL_MULTI_LEAK permit 10.2.20.0/24
+!
+route-map RM_MULTI_LEAK permit 10
+ match ip address prefix-list PL_MULTI_LEAK
+!
+router eigrp FABRIC
+ !
+ address-family ipv4 unicast autonomous-system 100
+  af-interface GigabitEthernet0/1
+   summary-address 10.2.0.0 255.255.0.0 leak-map RM_MULTI_LEAK
+  exit-af-interface
+  !
+  topology base
+  exit-af-topology
+  !
+  network 10.2.0.0 0.0.255.255
+ exit-address-family
+```
+
+---
+
+### Scenario 4: Classic Mode における Summary Leak-Map 構成
+* **要件:** Classic Mode (`router eigrp 100`) において、Gi0/1 上で `192.168.0.0/16` のサマリーを送りつつ `192.168.1.1/32`（DNSサーバ）のみリークさせよ。
+
+**【R1】**
+```bash
+ip prefix-list PL_DNS_LEAK permit 192.168.1.1/32
+!
+route-map RM_DNS_LEAK permit 10
+ match ip address prefix-list PL_DNS_LEAK
+!
+interface GigabitEthernet0/1
+ ip summary-address eigrp 100 192.168.0.0 255.255.0.0 leak-map RM_DNS_LEAK
+!
+router eigrp 100
+ network 192.168.0.0
+```
+
+---
+
+### Scenario 5: Classic Mode における EIGRP Stub with Leak-Map
+* **要件:** Classic Mode で R2 を Stub 化しつつ、`10.99.99.0/24` をリークさせよ。
+
+**【R2】**
+```bash
+ip prefix-list PL_CLASSIC_STUB permit 10.99.99.0/24
+!
+route-map RM_CLASSIC_STUB permit 10
+ match ip address prefix-list PL_CLASSIC_STUB
+!
+router eigrp 100
+ eigrp stub leak-map RM_CLASSIC_STUB
+ network 10.0.0.0
+```
+
+---
+
+### Scenario 6: DMVPN Hub における Summary + Leak-Map によるトラフィックエンジニアリング
+* **要件:** DMVPN Hub(R1) は Tunnel0 上で Spoke 群へ `10.0.0.0/8` をサマリー広告せよ。ただし、Spoke1 配下の特定サーバ `10.0.1.100/32` のみ明細でリークさせよ。
+
+**【R1 (Hub)】**
+```bash
+ip prefix-list PL_DMVPN_LEAK permit 10.0.1.100/32
+!
+route-map RM_DMVPN_LEAK permit 10
+ match ip address prefix-list PL_DMVPN_LEAK
+!
+router eigrp FABRIC
+ !
+ address-family ipv4 unicast autonomous-system 10
+  af-interface Tunnel0
+   no split-horizon
+   summary-address 10.0.0.0 255.0.0.0 leak-map RM_DMVPN_LEAK
+  exit-af-interface
+  !
+  topology base
+  exit-af-topology
+  !
+  network 10.0.0.0
+ exit-address-family
+```
+
+---
+
+### Scenario 7: EIGRPv6 (IPv6) Summary Route with Leak-Map
+* **要件:** EIGRPv6 において `2001:db8:10::/48` をサマリー広告しつつ、`2001:db8:10:1::1/128` のみをリークさせよ。
+
+**【R1】**
+```bash
+ipv6 prefix-list PL6_LEAK permit 2001:db8:10:1::1/128
+!
+route-map RM6_LEAK permit 10
+ match ipv6 address prefix-list PL6_LEAK
+!
+router eigrp FABRIC
+ !
+ address-family ipv6 unicast autonomous-system 200
+  af-interface GigabitEthernet0/1
+   summary-address 2001:db8:10::/48 leak-map RM6_LEAK
+  exit-af-interface
+  !
+  topology base
+  exit-af-topology
+ exit-address-family
+```
+
+---
+
+### Scenario 8: Leak-Map による特定 Loopback インターフェイスのピンポイント露出
+* **要件:** ルータ R1 上の多層 Loopback のうち、`Loopback10 (172.16.10.1/32)` のみを EIGRP Stub 環境から露出（リーク）させよ。
+
+**【R1】**
+```bash
+interface Loopback10
+ ip address 172.16.10.1 255.255.255.255
+!
+ip prefix-list PL_LO10 permit 172.16.10.1/32
+!
+route-map RM_LO10 permit 10
+ match ip address prefix-list PL_LO10
+!
+router eigrp FABRIC
+ !
+ address-family ipv4 unicast autonomous-system 100
+  eigrp stub leak-map RM_LO10
+  !
+  network 172.16.10.1 0.0.0.0
+  network 10.1.12.0 0.0.0.255
+ exit-address-family
+```
+
+---
+
+### Scenario 9: VRF-Aware EIGRP Summary with Leak-Map
+* **要件:** VRF `RED` 配下で `10.50.0.0/16` をサマリー広告し、`10.50.1.0/24` のみをリークさせよ。
+
+**【R1】**
+```bash
+ip prefix-list PL_VRF_RED_LEAK permit 10.50.1.0/24
+!
+route-map RM_VRF_RED_LEAK permit 10
+ match ip address prefix-list PL_VRF_RED_LEAK
+!
+router eigrp FABRIC
+ !
+ address-family ipv4 unicast vrf RED autonomous-system 500
+  af-interface GigabitEthernet0/2
+   summary-address 10.50.0.0 255.255.0.0 leak-map RM_VRF_RED_LEAK
+  exit-af-interface
+  !
+  topology base
+  exit-af-topology
+  !
+  network 10.50.0.0 0.0.255.255
+ exit-address-family
+```
+
+---
+
+### Scenario 10: トラブルシューティング（Leak-Map 内の Prefix-List ミスマッチ修正）
+* **要件:** R1 で `10.88.0.0/16` のサマリーに Leak-Map を設定しているが、`10.88.5.0/24` がリークされない問題を診断・修復せよ。
+
+**【不具合のあるコンフィグ】**
+```bash
+ip prefix-list PL_BAD permit 10.88.5.0/25  <-- マスク長不一致 (/25 になっている)
+!
+route-map RM_BAD permit 10
+ match ip address prefix-list PL_BAD
+```
+
+**【修正コマンド】**
+```bash
+no ip prefix-list PL_BAD
+ip prefix-list PL_BAD permit 10.88.5.0/24
+```
+
+**【検証方法】**
+```bash
+R2# show ip route 10.88.5.0
+# 10.88.5.0/24 が正確に RIB に掲載されたことを確認
+```
+
+---
+
+## ❓ 想定試験問題
+
+### 1. 【コンフィグ読解・実装】EIGRP Stub with Leak-Map の設定箇所
+**問題:** 
+以下の要件を満たす EIGRP Named Mode コンフィグを作成してください。
+* プロセス名: `CCIE_CORE`
+* AS 番号: 100
+* R1 は EIGRP Stub ルータとして動作させ、対向からの Query 受信を停止すること。
+* ただし、BGP から EIGRP へ再配送されている `192.168.200.0/24` の経路のみは、例外的に対向へ広告しなければならない。
+
+**解答・解説:**
+```bash
+ip prefix-list PL_BGP_LEAK permit 192.168.200.0/24
+!
+route-map RM_BGP_LEAK permit 10
+ match ip address prefix-list PL_BGP_LEAK
+!
+router eigrp CCIE_CORE
+ !
+ address-family ipv4 unicast autonomous-system 100
+  eigrp stub leak-map RM_BGP_LEAK
+  !
+  af-interface GigabitEthernet0/1
+   no passive-interface
+  exit-af-interface
+  !
+  topology base
+   redistribute bgp 65000 metric 100000 10 255 1 1500
+  exit-af-topology
+  !
+  network 10.1.12.0 0.0.0.255
+ exit-address-family
+```
+* **解説:**
+  `eigrp stub` に `leak-map` を付与することで、Stub ルータによる自動経路抑制をバイパスし、指定した再配送ルート（`192.168.200.0/24`）のみを対向へ安全に伝搬できます。設定位置が AF 直下モード（`eigrp stub leak-map`）である点に注意が必要です。
+
+---
+
+### 2. 【トラブルシューティング・Design】Query Propagation Boundary と SIA
+**問題:** 
+大規模な DMVPN ネットワークにおいて、Spoke ルータの1台で WAN リンク切断が発生した際、Hub ルータが Active Timer（180秒）満了まで応答待ちとなり、他の正常な Spoke とのアジャセンシーまで連続して切断される障害（SIA: Stuck-In-Active）が多発しています。既存のルーティング設計を一切崩さずに、この SIA 現象を根本解決するための最良の設計変更を述べよ。
+
+**解答・解説:**
+* **回答:** 
+  すべての Spoke ルータにおいて **EIGRP Stub ルータ（`eigrp stub`）機能** を有効化する。
+* **解説:** 
+  Spoke ルータ群を Stub 化することにより、Hub ルータは「Spoke はトランジットルータではない」と認識し、障害発生時に Spoke ルータ群へ向けて Query パケット自体を一切送信しなくなります（Query Propagation Boundary の形成）。これにより、特定 Spoke の応答遅延による SIA 障害が完全排除されます。
+
+---
+
+## 🔗 参考リソース
+
+* [Cisco Systems: EIGRP Stub Router Functionality](https://www.cisco.com/c/en/us/support/docs/ip/enhanced-interior-gateway-routing-protocol-eigrp/13655-39.html)
+* [Cisco Systems: EIGRP Configuration Guide, Cisco IOS XE Release 3S - Route Summarization](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_eigrp/configuration/xe-3s/ire-xe-3s-book.html)
+* [Cisco Live: BRKRST-2336 - EIGRP Deployment and Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html)
+
+---
+
+## 📝 補足（Notes）
+
+* **Leak-Map 設計時の基本ルール:**
+  1. Prefix-List でリークしたいプレフィックスを `permit` する。
+  2. Route-Map でその Prefix-List を `match` して `permit` する。
+  3. `summary-address ... leak-map` または `eigrp stub leak-map` で紐付ける。
+
 
 ## 参考リソースリンク
 
