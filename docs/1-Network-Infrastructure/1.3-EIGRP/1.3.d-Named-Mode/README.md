@@ -582,6 +582,16 @@ router eigrp FABRIC
    exit-address-family
   ```
 
+### 2. 【Design / トラブルシューティング】Classic から Named へのアップグレード影響
+**問題:** 
+運用中のコアスイッチにおいて `router upgrade eigrp 100 SWITCH_EIGRP` を実行しました。この操作により、対向の Classic Mode ルータとの間で EIGRP ネイバー断（トラフィック障害）が発生する可能性はあるでしょうか？技術的根拠とともに述べてください。
+
+**解答・解説:**
+* **回答:** **原則としてネイバー断は発生しません。**
+* **技術的根拠:** 
+  `router upgrade eigrp` コマンドは、自ルータ内部のコンフィグ構造を Classic 形式から Named 形式へ変換するローカル処理です。自動変換後も K 値（デフォルト `K1=1, K3=1`）や AS 番号、IP アドレス、認証情報、タイマー値はそのまま維持されます。
+  また、Named Mode 側で算出された 64-bit Wide Metrics は、Classic Mode 側へアドバタイズされる際に自動的に 128 で除算されてスケーリングされるため、対向が Classic Mode のままであってもアジャセンシーは維持されます。
+
 ---
 
 
@@ -601,20 +611,6 @@ router eigrp FABRIC
   * AF-Interface: `(config-router-af-interface)#`
   * Topology Base: `(config-router-af-topology)#`
 
-
-
-### 12. Maximum Hops の制限
-
-**【問題内容】**
-EIGRP ドメイン内でのルーティングループの被害を最小限に抑えるため、有効なルートの最大ホップ数を 50 に制限せよ（デフォルトは100）。
-
-**【設定サンプル】**
-```ios
-router eigrp CCIE_FABRIC
- address-family ipv4 unicast autonomous-system 100
-  topology base
-   metric maximum-hops 50
-```
 
 ---
 
