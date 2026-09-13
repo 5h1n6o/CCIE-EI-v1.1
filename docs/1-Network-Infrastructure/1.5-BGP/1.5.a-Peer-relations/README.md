@@ -6,345 +6,592 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 1
 ---
 
-# 1.5.a IBGP and EBGP Peer Relations
+# 1.5.a IBGP and EBGP peer relations
 
-CCIE Enterprise Infrastructure (EI) v1.1 の Blueprint 項目 「1.5 BGP」における「1.5.a IBGP and EBGP peer relations」について整理しました。
+本ページでは、CCIE Enterprise Infrastructure (EI) v1.1 Practical Lab 試験および筆記試験におけるコア EGP/IGP アソシエーション技術である **IBGP and EBGP peer relations（IBGP/EBGP ネイバー関係およびピアリング詳細）** について、Cisco IOS-XE 17.x の実装基準に完全準拠し、学術的・実践的背景から詳細に解説します [7, 1.2; 22, 1.5.a; 130, Cisco BGP Overview]。
 
 ---
 
 ## 📘 概要
 
-**BGP (Border Gateway Protocol)** は、今日のインターネットや大規模エンタープライズネットワークの屋台骨を支える、ポリシー駆動型のパスベクトル型ルーティングプロトコルです。他の IGP（OSPF や EIGRP）が「最短経路」を目指すのに対し、BGP は「自組織のポリシーに基づいた最適なパス」を選択し、膨大なルートを処理できるスケーラビリティを備えています。
+**BGP (Border Gateway Protocol)** は、インターネットおよび大規模エンタープライズ網において自律システム（AS: Autonomous System）間および AS 内部でルーティング情報を交換するための Path-Vector 型ルーティングプロトコルです [130, Cisco BGP Overview]。
 
-BGP の隣接関係（ピアリング）には、同一自律システム（AS）内で行われる **iBGP (Internal BGP)** と、異なる AS 間で行われる **eBGP (External BGP)** の 2 種類が存在します。iBGP はデフォルトで TTL が 255 に設定されており、物理的に離れたルータ間でもピアリングが可能ですが、AS 内部でのループ防止のために「iBGP ピアから学習したルートを他の iBGP ピアに転送しない」というスプリットホライゾンルールが適用されます。一方、eBGP は TTL がデフォルトで 1 であり、直接接続されたリンクを使用することが前提となっています。
+BGP ネイバー関係（Peer Relation）は、異なる AS 間に構築される **EBGP (External BGP)** と、同一 AS 内に構築される **IBGP (Internal BGP)** の 2 つに大別されます [7, 1.2; 130, Cisco BGP Overview]。BGP は下位トランスポートプロトコルとして **TCP 179 番ポート** を利用し、明示的に定義されたピア間でのみ 1 対 1 の信頼性あるセッションを確立します [130, Cisco BGP Overview]。
 
-CCIE ラボ試験においては、これら基本動作の深い理解を前提として、ピアグループやテンプレートを用いた大規模構成の最適化、動的ネイバーの確立、4 バイト AS 番号の運用、およびプライベート AS の管理といった、実戦的かつ高度な設計・実装能力が問われます。
+### 本セクション（1.5.a）がカバーする核心技術
+1. **Peer Groups & Templates (1.5.a (i)):** BGP コンフィグの簡素化・共通化および Update グループの最適化メカニズム（Peer Group, Peer Session Template, Peer Policy Template） [6, Task 4; 22, 1.5.a (i)]。
+2. **Active / Passive Mode (1.5.a (ii)):** TCP セッション確立主導権の制御（`neighbor transport connection-mode passive`） [22, 1.5.a (ii)]。
+3. **BGP Timers (1.5.a (iii)):** Keepalive / Holdtime タイマー、Fast Peering Session Deactivation (Fast Fall-over)、Min Holdtime による安定化 [22, 1.5.a (iii)]。
+4. **Dynamic Neighbors (1.5.a (iv)):** IP サブネット単位での動的 BGP ピア受付（`bgp listen range`）によるデータセンター・ハブ＆スポーク網の拡張性向上 [22, 1.5.a (iv)]。
+5. **4-byte AS Numbers (1.5.a (v)):** 32 ビット AS 番号表記体系（Asplain vs Asdot）と 2-byte / 4-byte BGP ルータ間の互換性（NEW_AS / AS4_PATH / AS4_AGGREGATOR） [22, 1.5.a (v)]。
+6. **Private AS Numbers (1.5.a (vi)):** プライベート AS 番号範囲（64512〜65534, 4200000000〜4294967294）と、ISP 境界での除去処理（`remove-private-as`） [22, 1.5.a (vi)]。
 
 ---
 
 ## 🔑 要点
 
-### 1. Peer Groups と Peer Templates (i)
-
-大規模な BGP ネットワークでは、多数のネイバーに対して同じポリシーを適用する必要があります。
-
-*   **Peer Groups:** 共通の `address-family` 設定やルートマップを一つのグループにまとめ、管理を簡素化します。ルータの CPU 負荷を軽減する効果（Update 生成の共通化）もあります。
-*   **Peer Templates:** 最新の IOS-XE で推奨される方式で、**Session Template**（接続パラメータ）と **Policy Template**（ルート処理パラメータ）の 2 種類に分かれます。
-    *   **Inheritance（継承）:** テンプレートは他のテンプレートを継承できるため、peer-group よりもさらに柔軟な階層設計が可能です。
-
-### 2. Active と Passive の制御 (ii)
-
-通常、BGP ピアリングは両端のルータが TCP ポート 179 を使用してコネクションを開始しようとします。
-
-*   **neighbor [IP] transport connection-mode passive:** このコマンドを設定されたルータは、自分から TCP SYN を送らず、相手からの接続を待ち受けます。
-*   **用途:** どちらが TCP 接続の主導権を握るかを制御したい場合や、ファイアウォール越しにセッションを張る際の設定簡略化に使用されます。
-
-### 3. BGP Timers (iii)
-
-BGP の障害検知はデフォルトでは比較的低速です。
-
-*   **Keepalive Timer:** ピアが生存していることを確認するパケット。デフォルトは 60 秒。
-*   **Hold Timer:** この時間内に Keepalive が届かない場合にピアがダウンしたと判定する時間。デフォルトは 180 秒（Keepalive の 3 倍）。
-*   **交渉:** セッション確立時に、両端で設定されている Hold タイムのうち、**低い方の値**が採用されます。
-
-### 4. Dynamic Neighbors (iv)
-
-特定の IP アドレスを個別に `neighbor` コマンドで指定する代わりに、特定のサブネット範囲からのピアリング要求を動的に受け入れる機能です。
-
-*   **bgp listen range [Subnet]:** 指定された範囲からの接続を許可します。
-*   **用途:** ルートリフレクタ (RR) において、多数のクライアントからの接続を一台ずつ設定する手間を省く際に有効です。
-
-### 5. 4-byte AS Numbers (v)
-
-2 バイト（1 ～ 65535）の AS 番号の枯渇に対応するため、32 ビット（最大約 42 億）の AS 番号が導入されました。
-
-*   **表記形式:** 
-    *   **ASPLAIN:** `65536` のように 10 進数で表記する形式。
-    *   **ASDOT:** `1.0` のように 2 バイトずつドットで区切る形式。
-*   **互換性:** 4 バイト AS 未対応の古いルータに対しては、予約済みの AS 番号 `23456` (AS_TRANS) を使用して情報を渡します。
-
-### 6. Private AS Numbers (vi)
-
-インターネット上では広告できない、組織内部やラボ環境でのみ使用される番号です。
-
-*   **範囲:** 64512 ～ 65535 (2 バイトの場合)。
-*   **処理:** 公衆網（インターネット）へルートを出す際、`remove-private-as` コマンドを使用して AS_PATH からこれらを削除することが必須となります。
+| 項目 | 内容 |
+| :--- | :--- |
+| **特徴** | TCP 179 を使用した点対点接続。EBGP（TTL=1 デフォルト）と IBGP（TTL=255、AS 内メッシュ/RR を要求）の厳格な分離 [130, Cisco BGP Overview]。 |
+| **用途** | ISP 接続、マルチホーム拠点接続、データセンター Leaf-Spine アンダーレイ/オーバーレイ網、MPLS VPN PE-CE ルーティング [22, 1.5.a]。 |
+| **メリット** | ポリシーベースのトラフィック制御（Attribute 制御）、大規模プレフィックス（ミリオンルート）の安定保持、柔軟なネイバーグループ管理 [137, Video Title: BGP Filtering and Manipulations]。 |
+| **デメリット** | セッション確立に TCP ネゴシエーションが必須でコンバー全速度が低速（通常時）。iBGP スプリットホライズンによるフルメッシュ要件 [57, 1.11.d]。 |
+| **成立要件** | ① L3 TCP 179 疎通性 <br> ② ピア IP アドレスと AS 番号の相互一致 <br> ③ BGP Router ID の存在 <br> ④ eBGP Multihop (Loopback ピア時) または TTL 適合 |
+| **Peer Template** | **Session Template**（TCP/タイマー/認証/ソース指定）と **Policy Template**（Route-Map/Prefix-List/Community）の分離継承モデル [6, Task 4; 22, 1.5.a (i)]。 |
+| **4-byte AS 表記** | **Asplain**（例: `65536`）を Cisco IOS-XE 標準として採用。**Asdot**（例: `1.0`）との相互変換が可能 [22, 1.5.a (v)]。 |
+| **設計上の注意点** | EBGP で Loopback 送信元を使用する場合は `ebgp-multihop` または `ttl-security` が必須。iBGP で Loopback 使用時は `update-source` が必須 [130, Cisco BGP Overview]。 |
 
 ---
 
-## 🎯 試験対策 (CCIE EIレベル)
+## 🏗 動作原理
 
-CCIE ラボ試験では、単なる設定だけでなく、「なぜセッションが張れないのか」というトラブルシューティングや、高度な制約条件付きの実装が課されます。
+BGP ネイバーアジャセンシーは、標準的な 3-Way TCP ハンドシェイク完了後に BGP プロトコルパケットを交換することで成立します [130, Cisco BGP Overview]。
 
-### 1. ネクストホップ解決の罠
-
-iBGP において、eBGP ピアから学習したルートを他の iBGP ネイバーに伝える際、**ネクストホップアドレスは書き換えられません**。
-*   **解決策:** `neighbor [IP] next-hop-self` を設定するか、IGP で eBGP 間の物理リンクアドレスを広報する必要があります。
-
-### 2. ループバックインターフェイスの使用
-
-安定性のために BGP ピアリングを Loopback アドレスで行う場合、以下の 2 点が必須です。
-*   **Update-source:** `neighbor [IP] update-source Loopback0` で、送信元 IP を一致させる。
-*   **EBGP Multihop:** eBGP で Loopback を使用する場合、TTL が 1 では到達できないため `neighbor [IP] ebgp-multihop 2` 等の設定が必要です。
-
-### 3. スプリットホライゾンの回避 (RR / Confederation)
-
-iBGP のフルメッシュ構成が不可能な大規模環境では、以下のどちらかの実装が求められます。
-*   **Route Reflector (RR):** 特定のルータにルートを反射させる役割を持たせる。
-*   **Confederation:** 大きな AS を「サブ AS」に分割し、内部では eBGP のように振る舞わせる。
-
-### 4. 認証の強制
-
-ラボ試験では、ネイバー間の MD5 認証（パスワード設定）がタスクに含まれることが多々あります。
-*   **確認:** `show ip bgp neighbors` の出力で、認証が有効になっているかを確認します。
-
----
-
-## 🛠 設定・検証コマンド
-
-### BGP 基本設定 (Address-Family モード)
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **BGPプロセス起動** | <code>router bgp [AS_NUMBER]</code> |
-| **ネイバー指定(接続)** | <code>neighbor [IP] remote-as [AS]</code> |
-| **AF配下での有効化** | <code>address-family ipv4 unicast</code> <br> <code>neighbor [IP] activate</code> |
-| **送信元をLoopbackに固定** | <code>neighbor [IP] update-source [Interface]</code> |
-| **eBGPマルチホップ設定** | <code>neighbor [IP] ebgp-multihop [HOP_COUNT]</code> |
-
-### スケーラビリティ・最適化設定
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **Peer-group 作成** | <code>neighbor [NAME] peer-group</code> |
-| **Template 作成(Session)** | <code>template bgp session [S_NAME]</code> |
-| **Template 適用** | <code>neighbor [IP] inherit bgp session [S_NAME]</code> |
-| **動的ネイバー許可** | <code>bgp listen range [Subnet] peer-group [NAME]</code> |
-| **パッシブモード設定** | <code>neighbor [IP] transport connection-mode passive</code> |
-
-### 属性操作・セキュリティ
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **ネクストホップの自己書換** | <code>neighbor [IP] next-hop-self</code> |
-| **認証パスワード設定** | <code>neighbor [IP] password [STRING]</code> |
-| **プライベートAS削除** | <code>neighbor [IP] remove-private-as</code> |
-| **タイマー設定(K/H)** | <code>neighbor [IP] timers [Keepalive] [Holdtime]</code> |
-| **4バイトAS表記変更** | <code>(config-router)# bgp asnotation dot</code> |
-
-### 検証・トラブルシューティング
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **ピア概要表示(最重要)** | <code>show ip bgp summary</code> |
-| **特定ピアの詳細(タイマー等)** | <code>show ip bgp neighbors [IP]</code> |
-| **BGPテーブルの確認** | <code>show ip bgp</code> |
-| **広報しているルートの確認** | <code>show ip bgp neighbors [IP] advertised-routes</code> |
-| **受信しているルートの確認** | <code>show ip bgp neighbors [IP] routes</code> |
-| **状態遷移のデバッグ** | <code>debug ip bgp [neighbor] events</code> |
-
----
-
-## 🛠 ラボ学習・設定サンプル例
-
-### 1. Loopback インターフェイスを使用した iBGP ピアリング
-
-**【問題内容】**
-AS 100 内の R1 と R2 において、Loopback 0 アドレスを使用して iBGP セッションを確立せよ。
-
-**【設定例】**
-```ios
-! R1
-router bgp 100
- neighbor 2.2.2.2 remote-as 100
- neighbor 2.2.2.2 update-source Loopback0
- address-family ipv4 unicast
-  neighbor 2.2.2.2 activate
-
-! R2
-router bgp 100
- neighbor 1.1.1.1 remote-as 100
- neighbor 1.1.1.1 update-source Loopback0
- address-family ipv4 unicast
-  neighbor 1.1.1.1 activate
+```text
+[ Router A (10.1.12.1) ]                              [ Router B (10.1.12.2) ]
+       │                                                       │
+       │─── 1. TCP SYN (Dst Port: 179, Src Port: Dynamic) ────►│  (TCP Connection Initiated)
+       │◄── 2. TCP SYN-ACK ────────────────────────────────────│
+       │─── 3. TCP ACK ────────────────────────────────────────►│  (TCP Established)
+       │                                                       │
+       │─── 4. BGP OPEN Packet (Version 4, AS, Holdtime, RID)─►│  (OpenSent State)
+       │◄── 5. BGP OPEN Packet ────────────────────────────────│  (OpenConfirm State)
+       │                                                       │
+       │─── 6. BGP KEEPALIVE Packet ──────────────────────────►│
+       │◄── 7. BGP KEEPALIVE Packet ───────────────────────────│
+       │                                                       │
+       │=======================================================│
+       │            [ BGP Peer State: ESTABLISHED ]            │
+       │=======================================================│
+       │                                                       │
+       │─── 8. BGP UPDATE Packet (Path Attributes, Prefixes) ─►│
+       │◄── 9. BGP UPDATE Packet ──────────────────────────────│
 ```
 
+### BGP FSM (Finite State Machine) 6 段階ステート
+1. **Idle:** BGP プロセスが停止、またはリセットされた状態。TCP 接続を開始できない。
+2. **Connect:** TCP 3-Way ハンドシェイクの完了を待っている状態。成功すると **OpenSent** へ遷移。タイムアウトすると **Active** へ遷移。
+3. **Active:** TCP 接続試行が失敗し、再度 TCP 接続を確立しようと試みている状態。相手からの接続要求を待受。
+4. **OpenSent:** TCP 接続が完了し、自機の **BGP OPEN** パケットを送信して相手からの OPEN パケット待ち状態。
+5. **OpenConfirm:** 相互に OPEN パケットを検証し合意。相手からの **KEEPALIVE** パケット受信待ち状態。
+6. **Established:** 相互に KEEPALIVE を受信完了。ネイバーが完全に成立し、ルーティング情報（UPDATE パケット）の交換が可能 [128, Show ip bgp summary]。
+
 ---
 
-### 2. eBGP Multihop とピアリング認証
+## ⚙ 動作シーケンス
 
-**【問題内容】**
-R3 (AS 3) と R5 (AS 65001) の間で eBGP を確立せよ。Loopback アドレスを使用し、パスワード「ccie_lab」で保護すること。
+1. **TCP セッション確立 (TCP 179):**
+   * 設定されたピア IP アドレス宛てに TCP SYN パケットを送出し、Port 179 でセッションをオープンします [130, Cisco BGP Overview]。
+   * `neighbor <IP> transport connection-mode passive` が指定されている場合、自機からは SYN を送信せず、対向からの Port 179 接続待ち（Inbound TCP SYN）に専念します [22, 1.5.a (ii)]。
+2. **BGP OPEN パケットパラメータ検証:**
+   * **BGP Version (4):** バージョン一致を確認。
+   * **My AS Number:** `remote-as` で指定された AS 番号と一致するか検証。
+   * **Hold Time:** 相互の Hold Time を比較し、**小さい方の値** をセッション全体の Hold Time として選択（0 の場合はタイマー無効化） [22, 1.5.a (iii)]。
+   * **BGP Identifier (Router ID):** ピア間で一意であることを確認（同一 RID は拒否）。
+   * **Optional Capabilities:** 4-byte AS サポート (Cap ID 65)、Route Refresh (Cap ID 2)、Address Family (MP-BGP: Cap ID 1) のネゴシエーション [22, 1.5.a (v)]。
+3. **KEEPALIVE パケットによる相互承認:**
+   * OPEN パケットに問題がなければ、19 バイトの軽量 KEEPALIVE パケットを返し、Established ステートに移動します。
+4. **UPDATE パケット伝搬とスプリットホライズン適用:**
+   * **EBGP ピアへ:** 自 AS 番号を `AS_PATH` の最左列に追加（Prepending）し、`Next-Hop` を自インターフェイス IP（または Update-Source）に書き換えて送信 [57, 1.11.c; 130, Cisco BGP Overview]。
+   * **IBGP ピアへ:** `AS_PATH` を変更せず、`Next-Hop` もデフォルトでは維持したまま送信。IBGP スプリットホライズンルール（IBGP ピアから学んだルートを別の IBGP ピアへ再送信しない）を適用 [57, 1.11.d; 132, Configuring BGP Route Map with Next-Hop Self]。
 
-**【設定例】**
-```ios
-! R3
-router bgp 3
- neighbor 10.1.5.5 remote-as 65001
- neighbor 10.1.5.5 ebgp-multihop 2
- neighbor 10.1.5.5 update-source Loopback0
- neighbor 10.1.5.5 password ccie_lab
+---
+
+## 🎯 試験対策（CCIE EIラボ試験）
+
+CCIE EI Practical Lab 試験において、BGP ピアリング（1.5.a）は単なる疎通確認にとどまらず、複雑な条件指定やスケール構成の一部として頻出します [22, 1.5.a]。
+
+### 1. Peer Group vs Peer Session / Policy Templates
+* **Peer Group (従来型):**
+  * TCP セッションパラメータ（ソース、タイマー、AS）とルーティングポリシー（Route-Map, Prefix-List）を 1 つのグループ名でまとめて管理。
+  * 制限: 同一 Group 内のピアは **完全に同一のアウトバウンドポリシー** を共有しなければならない。
+* **Peer Templates (モダン構成):**
+  * **Peer Session Template:** TCP 接続（`update-source`, `ebgp-multihop`, `timers`, `remote-as`, `password`）を定義。継承（`inherits`）可能 [6, Task 4; 22, 1.5.a (i)]。
+  * **Peer Policy Template:** ルーティングポリシー（`route-map`, `prefix-list`, `send-community`, `next-hop-self`）を定義。複数テンプレートの階層的バインドが可能 [6, Task 4; 22, 1.5.a (i)]。
+
+### 2. eBGP Loopback ピアリングと Multihop / TTL Security の罠
+* **eBGP のデフォルト TTL は `1`:**
+  * 物理直結ポートの IP ではなく Loopback アドレス同士で eBGP ピアを組む場合、1 ホスト離れるため TTL=1 ではパケットがドロップされます [130, Cisco BGP Overview]。
+  * **解法 1:** `neighbor <IP> ebgp-multihop <hops>` を投入（指定した hops に TTL を変更） [130, Cisco BGP Overview]。
+  * **解法 2:** `neighbor <IP> ttl-security hops <count>` を投入（GTSM: 送信時 TTL=255、受信時 TTL >= 255-count を検証） [7, 5.1.b; 22, 1.5.a]。
+  * **注意:** `ebgp-multihop` と `ttl-security` は同一ピアに対して **相互排他（同時設定不可）** です。
+
+### 3. Active / Passive モードの指定要件
+試験問題で「本ルータは対向ルータからの TCP 179 セッション接続要求のみを受信し、自機からは対向へ向けて TCP 接続を開始しないように構成せよ」と指示された場合：
+```bash
+router bgp 65001
+ neighbor 10.1.12.2 transport connection-mode passive
 ```
+※片側を Passive に設定した場合、対向側（Active 側）が正常に Port 179 宛てに TCP SYN を送出できる状態（ACL や CoPP で拒否されていないこと）が前提となります [22, 1.5.a (ii)]。
+
+### 4. Dynamic Neighbors (BGP Listen Range) の設定作法
+データセンター網や DMVPN/SD-WAN アンダーレイで、多数のスポーク/Leaf ルータからの BGP 接続を個別 `neighbor` 定義なしで一括受付する場合に使用します [22, 1.5.a (iv)]。
+* **必須要素:**
+  1. `bgp listen range <PREFIX> peer-group <GROUP_NAME>`
+  2. 受け入れる `peer-group` を事前作成し、`remote-as` または `alternate-as` を定義しておくこと [22, 1.5.a (iv)]。
+
+### 5. 4-byte AS Numbers (Asplain vs Asdot)
+* **Asplain (標準 10 進数表記):** 例: `65536`（65536〜4294967295） [22, 1.5.a (v)]。
+* **Asdot (ドット表記):** `1.0`（`1 * 65536 + 0 = 65536`） [22, 1.5.a (v)]。
+* Cisco IOS-XE では標準で Asplain が使用されます。全ルータで表示を統一する場合は `bgp asnotation dot` を使用します [22, 1.5.a (v)]。
 
 ---
 
-### 3. Peer-group を用いた iBGP フルメッシュの簡素化
+## 🛠 設定方法
 
-**【問題内容】**
-R1 において、他の 7 台のルータに対する共通設定（AS 番号、update-source、next-hop-self）を `IBGP_CORE` というグループで管理せよ。
+### 1. Peer Session & Policy Templates を使用した高度な iBGP / eBGP 構成
 
-**【設定例】**
-```ios
-router bgp 100
- neighbor IBGP_CORE peer-group
- neighbor IBGP_CORE remote-as 100
- neighbor IBGP_CORE update-source Loopback0
- neighbor IBGP_CORE next-hop-self
- ! 個別ネイバーへの適用
- neighbor 10.1.2.2 peer-group IBGP_CORE
- neighbor 10.1.3.3 peer-group IBGP_CORE
-```
-
----
-
-### 4. Dynamic Neighbors (BGP Listen) の構成
-
-**【問題内容】**
-ルートリフレクタ R9 において、`10.1.1.0/24` のサブネット内の全ルータからの iBGP 接続を動的に受け入れるように設定せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- neighbor DYNAMIC_CLIENTS peer-group
- neighbor DYNAMIC_CLIENTS remote-as 100
- ! サブネット範囲とグループの紐付け
- bgp listen range 10.1.1.0/24 peer-group DYNAMIC_CLIENTS
-```
-
----
-
-### 5. Peer Templates による高度な階層設定
-
-**【問題内容】**
-AS 200 において、セッション用のテンプレート `S_IBGP` を作成し、それを継承してポリシー設定を適用せよ。
-
-**【設定例】**
-```ios
-router bgp 200
- template bgp session S_IBGP
-  remote-as 200
+```bash
+router bgp 65001
+ bgp router-id 1.1.1.1
+ bgp log-neighbor-changes
+ !
+ # --- Peer Session Template の定義 ---
+ template peer-session IBGP_COMMON_SESSION
+  remote-as 65001
   update-source Loopback0
+  timers 10 30
+  transport connection-mode active
+ exit-peer-session
+ !
+ template peer-session EBGP_EDGE_SESSION
+  remote-as 65002
+  ebgp-multihop 255
+  password CISCO_BGP_PASS
+ exit-peer-session
+ !
+ # --- Peer Policy Template の定義 ---
+ template peer-policy IBGP_COMMON_POLICY
+  next-hop-self
+  send-community both
  exit-peer-policy
- ! ネイバーへの適用
- neighbor 10.2.2.2 inherit bgp session S_IBGP
-```
-
----
-
-### 6. eBGP における Private AS 番号の削除
-
-**【問題内容】**
-ISP ルータ R10 が、プライベート AS 65111 を使用している顧客 R11 から学習したルートを上位へ広報する際、プライベート AS 番号を削除して広報せよ。
-
-**【設定例】**
-```ios
-router bgp 10
- neighbor 10.10.10.1 remote-as 11
+ !
+ # --- Address-Family へのバインド ---
  address-family ipv4 unicast
-  neighbor 10.1.1.2 remote-as 20
-  neighbor 10.1.1.2 remove-private-as
+  neighbor 2.2.2.2 inherit peer-session IBGP_COMMON_SESSION
+  neighbor 2.2.2.2 inherit peer-policy IBGP_COMMON_POLICY
+  !
+  neighbor 10.1.12.2 inherit peer-session EBGP_EDGE_SESSION
+ exit-address-family
 ```
 
----
+### 2. Dynamic Neighbors (BGP Listen Range) 設定例
 
-### 7. タイマーの微調整（高速障害検知）
-
-**【問題内容】**
-特定のネイバー 10.1.12.2 に対し、Keepalive を 10 秒、Hold タイムを 30 秒に設定せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.12.2 timers 10 30
-```
-
----
-
-### 8. Passive ピアリングの実装
-
-**【問題内容】**
-R4 において、ネイバー 10.1.45.5 からの TCP 接続は受け入れるが、自分からは接続を開始しないように設定せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.45.5 transport connection-mode passive
-```
-
----
-
-### 9. 4-byte AS 番号の表記変更 (ASDOT)
-
-**【問題内容】**
-AS 65536 を `1.0` というドット表記で表示し、運用するように設定せよ。
-
-**【設定例】**
-```ios
-router bgp 65536
- bgp asnotation dot
-```
-
----
-
-### 10. iBGP における Next-Hop-Self の一括適用
-
-**【問題内容】**
-iBGP ピアグループ `RR_CLIENTS` に対し、外部ルート広報時の到達性を確保するためネクストホップを自身の Loopback アドレスに書き換えるよう設定せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- neighbor RR_CLIENTS peer-group
+```bash
+router bgp 65100
+ bgp router-id 10.100.0.1
+ bgp listen range 172.16.0.0/16 peer-group DYNAMIC_SPOKES
+ !
+ neighbor DYNAMIC_SPOKES peer-group
+ neighbor DYNAMIC_SPOKES remote-as 65200
+ !
  address-family ipv4 unicast
-  neighbor RR_CLIENTS next-hop-self
+  neighbor DYNAMIC_SPOKES activate
+  neighbor DYNAMIC_SPOKES route-map INBOUND_FILTER in
+ exit-address-family
 ```
 
 ---
 
-### 11. IPv6 BGP (MP-BGP) ピアリング
+## 🔍 検証コマンド
 
-**【問題内容】**
-IPv6 環境で eBGP セッションを確立し、IPv6 アドレスファミリーを有効化せよ。
+| 目的 | コマンド |
+| :--- | :--- |
+| **BGP ピア一覧、ステート（Established/Active/Idle）、プレフィックス受信数の全般確認** | <code>show ip bgp summary</code> / <code>show bgp ipv4 unicast summary</code> |
+| **特定ピアとの詳細状態（TCP 送信元/宛先ポート、Holdtime、Capability、テンプレート情報）の確認** | <code>show ip bgp neighbors 10.1.12.2</code> |
+| **Dynamic Neighbors（Listen Range）で動的確立されたアクティブピアの一覧確認** | <code>show ip bgp neighbors \| include Dynamic</code> |
+| **Peer Session / Policy Template の定義および継承ツリーの確認** | <code>show bgp peer-template</code> / <code>show bgp peer-group</code> |
+| **BGP TCP セッション確立処理・OPEN ネゴシエーションのリアルタイムデバッグ** | <code>debug bgp ipv4 unicast updates</code> / <code>debug ip bgp events</code> |
 
-**【設定例】**
-```ios
-router bgp 100
- neighbor 2001:DB8::2 remote-as 200
- address-family ipv6 unicast
-  neighbor 2001:DB8::2 activate
+---
+
+## 🚨 トラブルシュート
+
+| 症状 | 原因 | 確認コマンド | 対処方法 |
+| :--- | :--- | :--- | :--- |
+| **BGP ネイバーが `Active` または `Connect` ステートでハングし成立しない。** | 1. TCP 179 宛ての L3 疎通性不可（Routing/ACL/CoPP ドロップ）。<br>2. AS 番号（`remote-as`）の不一致。<br>3. eBGP Loopback ピアリング時の `ebgp-multihop` 欠落。 | `show ip bgp summary`<br>`show ip route <PEER_IP>`<br>`ping <PEER_IP> source <SRC>` | 1. ピア IP への Ping 疎通と ACL で TCP 179 許可を確認。<br>2. `remote-as` 設定を修正。<br>3. `ebgp-multihop` または `ttl-security` をバインド。 |
+| **`Active` ステートでネイバー生成と消滅を繰り返す（TCP 接続拒否）。** | 双方で `update-source` が一致していない（相手が受信した TCP SYN の送信元 IP と、相手側 `neighbor` 定義 IP が不一致）。 | `show ip bgp neighbors <IP>`<br>`debug ip bgp events` | 両ルータで `neighbor <IP> update-source Loopback0` 等を投入し、送信元 IP を完全に統一する。 |
+| **Dynamic Neighbors で対向スポークからの接続が拒否される。** | 1. スポークの IP が `bgp listen range` で指定したサブネット外。<br>2. バインドされた `peer-group` に `remote-as` や `alternate-as` が未定義。 | `show ip bgp summary`<br>`show running-config \| sec router bgp` | `bgp listen range` プレフィックス長を拡大するか、`peer-group` 配下に正しく `remote-as` を追加する。 |
+| **プライベート AS 番号がインターネット側へ漏洩する。** | eBGP ピアに対して `remove-private-as` が設定されていない。 | `show ip bgp 10.0.0.0/8` | 対向 eBGP ピア指定配下で `neighbor <IP> remove-private-as`（または `all` オプション）を付与する。 |
+
+---
+
+## ⚠ 制限事項
+
+1. **`ebgp-multihop` と `ttl-security` の排他制限:**
+   * 同一の BGP ピアに対して `neighbor ebgp-multihop` と `neighbor ttl-security` を同時に設定することは Cisco IOS-XE の仕様上禁止されています（コマンド投入時にエラーとなります）。
+2. **Dynamic Neighbors (Listen Range) の接続上限:**
+   * `bgp listen limit <count>` コマンドを設定しない場合、デフォルトで無制限またはプラットフォーム上限まで動的ピアを受け入れます。Control Plane 保護のため必ず `bgp listen limit` を定義することが推奨されます。
+
+---
+
+## 🔄 他技術との関連
+
+* **BFD (Bidirectional Forwarding Detection):**
+  BGP のデフォルト Holdtime（180秒）に依存せず、ミリ秒単位（例: 50ms x 3）でリンク障害を検知して即座に BGP ピアを Down 状態へ推移させます（`neighbor <IP> fall-over bfd`） [22, 1.2.j]。
+* **Control Plane Policing (CoPP):**
+  BGP ピア以外の不正な IP から送信されてくる TCP Port 179 パケットを CoPP でドロップし、ルータ CPU への DoS 攻撃を防ぎます [24, 4.1.a; 61, 5.2.b]。
+* **MPLS L3VPN / EVPN:**
+  PE ルータ間での MP-iBGP (Multiprotocol BGP) ピアリングにおいて、`address-family vpnv4` や `address-family l2vpn evpn` を有効化して Overlay ラベル情報を伝搬します [29, 3.2.b (ii); 57, 2.2]。
+
+---
+
+## 🧩 比較表
+
+### 1. IBGP vs EBGP ピア動作比較
+
+| 比較項目 | IBGP (Internal BGP) | EBGP (External BGP) |
+| :--- | :--- | :--- |
+| **AS 番号** | 同一 AS 内のルータ間ピアリング | 異なる AS 間のルータ間ピアリング |
+| **デフォルト IP TTL** | **255** (マルチホップ可能) | **1** (物理直結が前提) |
+| **Loopback ピアリング条件** | `update-source` の指定のみで成立 | `update-source` ＋ `ebgp-multihop` または `ttl-security` が必須 |
+| **Next-Hop 伝搬動作** | 他ピアへルートを転送する際、**Next-Hop を変更しない**（手動で `next-hop-self` が必要） | **Next-Hop を自ルータの IP に自動書き換え** て送信 |
+| **AS_PATH 伝搬動作** | 自分の AS 番号を `AS_PATH` に**追加しない** | 自分の AS 番号を `AS_PATH` の先頭（左端）に**追加** |
+| **ループ防止ルール** | **iBGP スプリットホライズン** (iBGP から学んだルートを別の iBGP へ転送不可) | **AS_PATH ループチェック** (自 AS 番号が含まれる UPDATE パケットを破棄) |
+
+### 2. Peer Group vs Peer Session / Policy Templates 比較
+
+| 比較項目 | Peer Group | Peer Session / Policy Templates |
+| :--- | :--- | :--- |
+| **柔軟性・再利用性** | 低い (すべての設定が 1 つのグループに拘束) | **非常に高い** (Session と Policy を独立定義・継承可能) [6, Task 4] |
+| **設定の階層** | グローバル `neighbor <NAME> peer-group` 配下 | `template peer-session` / `template peer-policy` で個別定義 [6, Task 4] |
+| **ポリシーの個別化** | アウトバウンドポリシーの個別化不可 | Policy Template 内で `inherits` や個別 override が柔軟に可能 [6, Task 4] |
+
+---
+
+## 💡 ベストプラクティス
+
+1. **Peer Session / Policy Templates の積極活用:**
+   Cisco IOS-XE での BGP 構成時、Peer Group の使用を避け、Session（接続属性）と Policy（ルーティングポリシー）を完全分離した Templates 構成を採用する [6, Task 4; 22, 1.5.a (i)]。
+2. **Defensive EBGP Peering (GTSM):**
+   直結 EBGP ピアに対しても `ttl-security hops 1` を指定し、遠隔スプーフィング攻撃を物理層/ASIC 段階で遮断する [7, 5.1.b; 22, 1.5.a]。
+3. **iBGP での `next-hop-self` 標準バインド:**
+   AS 境界 ASBR 上で iBGP ピアに向けて常に `next-hop-self` を設定し、IGP への eBGP ネクストホップ再配送を不要にする [132, Configuring BGP Route Map with Next-Hop Self]。
+
+---
+
+## 📝 ラボ学習・設定サンプル例
+
+以下は、CCIE EI ラボ試験レベルに対応する省略なしの 10 個の演習シナリオです。
+
+### Scenario 1: Peer Group による IBGP フルメッシュ構成
+* **要件:** R1 (1.1.1.1) と R2 (2.2.2.2) 間で、Peer Group 名 `IBGP_CORE` を使用して AS 65001 内の IBGP ピアを確立せよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp router-id 1.1.1.1
+ bgp log-neighbor-changes
+ !
+ neighbor IBGP_CORE peer-group
+ neighbor IBGP_CORE remote-as 65001
+ neighbor IBGP_CORE update-source Loopback0
+ neighbor IBGP_CORE timers 10 30
+ !
+ neighbor 2.2.2.2 peer-group IBGP_CORE
+ !
+ address-family ipv4 unicast
+  neighbor IBGP_CORE activate
+  neighbor IBGP_CORE next-hop-self
+  neighbor IBGP_CORE send-community both
+ exit-address-family
+```
+
+**【R2】**
+```bash
+router bgp 65001
+ bgp router-id 2.2.2.2
+ bgp log-neighbor-changes
+ !
+ neighbor IBGP_CORE peer-group
+ neighbor IBGP_CORE remote-as 65001
+ neighbor IBGP_CORE update-source Loopback0
+ neighbor IBGP_CORE timers 10 30
+ !
+ neighbor 1.1.1.1 peer-group IBGP_CORE
+ !
+ address-family ipv4 unicast
+  neighbor IBGP_CORE activate
+  neighbor IBGP_CORE next-hop-self
+  neighbor IBGP_CORE send-community both
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp summary
+# 2.2.2.2 とのピアが Established になっていることを確認
 ```
 
 ---
 
-### 12. BGP over GRE トンネル
+### Scenario 2: Peer Session & Policy Templates によるモダン BGP 構成
+* **要件:** Peer Session Template `SESS_IBGP` と Peer Policy Template `POL_IBGP` を定義し、R1-R3 間で iBGP を確立せよ [6, Task 4; 22, 1.5.a (i)]。
 
-**【問題内容】**
-物理的に直接接続されていない R7 と R8 の間で、GRE トンネルを介して eBGP ピアリングを確立せよ。
+**【R1】**
+```bash
+router bgp 65001
+ bgp router-id 1.1.1.1
+ !
+ template peer-session SESS_IBGP
+  remote-as 65001
+  update-source Loopback0
+  timers 10 30
+ exit-peer-session
+ !
+ template peer-policy POL_IBGP
+  next-hop-self
+  send-community both
+ exit-peer-policy
+ !
+ address-family ipv4 unicast
+  neighbor 3.3.3.3 inherit peer-session SESS_IBGP
+  neighbor 3.3.3.3 inherit peer-policy POL_IBGP
+ exit-address-family
+```
 
-**【設定例】**
-```ios
-! R7
-interface Tunnel0
- ip address 172.16.78.7 255.255.255.0
- tunnel source GigabitEthernet1
- tunnel destination 10.1.1.8
+**【検証方法】**
+```bash
+R1# show bgp peer-template
+# テンプレートが正常に適用・継承されていることを確認
+```
+
+---
+
+### Scenario 3: eBGP Multihop & Loopback ピアリング構成
+* **要件:** R1 (AS 65001, Lo0: 1.1.1.1) と R4 (AS 65004, Lo0: 4.4.4.4) 間で、Loopback アドレス同士による eBGP ピアを確立せよ [130, Cisco BGP Overview]。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp router-id 1.1.1.1
+ neighbor 4.4.4.4 remote-as 65004
+ neighbor 4.4.4.4 update-source Loopback0
+ neighbor 4.4.4.4 ebgp-multihop 255
+ !
+ address-family ipv4 unicast
+  neighbor 4.4.4.4 activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 4.4.4.4 | include External BGP neighbor
+# External BGP neighbor may be up to 255 hops away と出力されることを確認
+```
+
+---
+
+### Scenario 4: Passive BGP Peer (片側 Passive 化) 構成
+* **要件:** R1 側で R2 (10.1.12.2) からの TCP 179 接続のみを受信するよう `passive` モードを定義せよ [22, 1.5.a (ii)]。
+
+**【R1】**
+```bash
+router bgp 65001
+ neighbor 10.1.12.2 remote-as 65002
+ neighbor 10.1.12.2 transport connection-mode passive
+ !
+ address-family ipv4 unicast
+  neighbor 10.1.12.2 activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 10.1.12.2 | include Connection mode
+# Connection mode is passive を確認
+```
+
+---
+
+### Scenario 5: BGP Fast Fall-over (Fast Peering Session Deactivation)
+* **要件:** R1-R2 間で、ネクストホップへの L3 ルートが RIB から消去された瞬間に即座に BGP ピアを閉塞させるよう構成せよ [22, 1.5.a (iii)]。
+
+**【R1】**
+```bash
+router bgp 65001
+ neighbor 10.1.12.2 remote-as 65002
+ neighbor 10.1.12.2 fall-over route-map BGP_NH_TRACK
+ !
+ip prefix-list PEER_LINK permit 10.1.12.0/24
 !
-router bgp 100
- neighbor 172.16.78.8 remote-as 200
- ! トンネル経由なので直接接続とみなされ、ebgp-multihopは不要な場合が多い
+route-map BGP_NH_TRACK permit 10
+ match ip address prefix-list PEER_LINK
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 10.1.12.2 | include Fall-over
 ```
 
 ---
+
+### Scenario 6: Dynamic Neighbors (BGP Listen Range) 構成
+* **要件:** R1 において、`172.16.0.0/16` セグメントからの動的 eBGP 接続（AS 65200）を一括自動受付せよ [22, 1.5.a (iv)]。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp router-id 1.1.1.1
+ bgp listen range 172.16.0.0/16 peer-group DYNAMIC_CLIENTS
+ bgp listen limit 50
+ !
+ neighbor DYNAMIC_CLIENTS peer-group
+ neighbor DYNAMIC_CLIENTS remote-as 65200
+ !
+ address-family ipv4 unicast
+  neighbor DYNAMIC_CLIENTS activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp summary
+# 動的に追加されたクライアントが *172.16.1.2 のようにアスタリスク付きで表示されることを確認
+```
+
+---
+
+### Scenario 7: 4-byte AS Numbers (Asplain vs Asdot 変換)
+* **要件:** R1 の AS 番号を 4-byte AS `4200000000` に定義し、表示方式を Asdot に統一せよ [22, 1.5.a (v)]。
+
+**【R1】**
+```bash
+router bgp 4200000000
+ bgp router-id 1.1.1.1
+ bgp asnotation dot
+ neighbor 10.1.12.2 remote-as 65002
+ !
+ address-family ipv4 unicast
+  neighbor 10.1.12.2 activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp summary
+# AS 番号が Asdot 形式（64086.61440）で正しく変換表示されることを確認
+```
+
+---
+
+### Scenario 8: Private AS 削除 (`remove-private-as` / `all`)
+* **要件:** ISP ルータ R1 から対向 eBGP ピア (10.1.12.2) へ UPDATE を送信する際、`AS_PATH` に含まれるすべてのプライベート AS 番号（64512〜65534）を全自動削除せよ [22, 1.5.a (vi)]。
+
+**【R1】**
+```bash
+router bgp 65000
+ neighbor 10.1.12.2 remote-as 65002
+ neighbor 10.1.12.2 remove-private-as all replace-as
+ !
+ address-family ipv4 unicast
+  neighbor 10.1.12.2 activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R2# show ip bgp
+# R1 から受領したプレフィックスの AS_PATH からプライベート AS が消去されていることを確認
+```
+
+---
+
+### Scenario 9: GTSM (BGP TTL Security Mechanism) 構成
+* **要件:** R1 (10.1.12.1) と R2 (10.1.12.2) 間の eBGP ピアに対して、GTSM（TTL Security, Hop Count 1）を構成せよ [7, 5.1.b; 22, 1.5.a]。
+
+**【R1 / R2 共通】**
+```bash
+router bgp 65001
+ neighbor 10.1.12.2 remote-as 65002
+ neighbor 10.1.12.2 ttl-security hops 1
+ !
+ address-family ipv4 unicast
+  neighbor 10.1.12.2 activate
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 10.1.12.2 | include External BGP neighbor
+# External BGP neighbor may be up to 1 hop away (TTL Security enabled) を確認
+```
+
+---
+
+### Scenario 10: VRF-Aware BGP Neighbor 構成 (Multi-Tenant)
+* **要件:** VRF `TENANT_A` 内で対向 CE ルータ (192.168.10.2, AS 65100) との eBGP ピアを確立せよ [22, 1.2.e, 1.5.a]。
+
+**【R1 (PE)】**
+```bash
+vrf definition TENANT_A
+ rd 65001:100
+ address-family ipv4
+exit-vrf
+!
+router bgp 65001
+ address-family ipv4 vrf TENANT_A
+  neighbor 192.168.10.2 remote-as 65100
+  neighbor 192.168.10.2 activate
+  neighbor 192.168.10.2 as-override
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp vpnv4 vrf TENANT_A summary
+```
+
+---
+
+## ❓ 想定試験問題
+
+### 1. 【コンフィグ読解・トラブルシューティング】eBGP Multihop と TTL Security の排他エラー
+**問題:** 
+以下のコンフィグを R1 に投入したところ、ルータからエラーが返され設定が拒否されました。原因を説明し、正しい修正案を提示してください。
+```text
+router bgp 65001
+ neighbor 4.4.4.4 remote-as 65004
+ neighbor 4.4.4.4 ebgp-multihop 5
+ neighbor 4.4.4.4 ttl-security hops 2
+```
+
+**解答・解説:**
+* **原因:** 
+  Cisco IOS-XE の仕様により、同一の BGP ピアに対して `ebgp-multihop` と `ttl-security` を同時にバインドすることは相互排他的であり禁止されています。
+  `ebgp-multihop` は送信 IP パケットの TTL を指定値（例: 5）に手動設定するのに対し、`ttl-security` (GTSM) は送信パケットの TTL を常に `255` に設定し、受信時に `255 - hops` 以上の TTL を検証する仕組みであるため、両者の動作原理が根本的に矛盾します [7, 5.1.b; 130, Cisco BGP Overview]。
+* **修正案:** 
+  目的（接続維持か DoS 保護か）に応じて、どちらか一方のみをバインドします。遠隔ホップ経由の eBGP ピアリングを GTSM 保護付きで行う場合は、`ebgp-multihop` を削除し `ttl-security hops 5` のみに統一します [7, 5.1.b]。
+
+---
+
+### 2. 【Design】iBGP フルメッシュにおける Template 共通化設計
+**問題:** 
+20 台のルータが存在する AS 65000 の iBGP メッシュ網において、コンフィグ行数を最小化しつつ、将来のタイマー変更や認証パスワード変更を 1 箇所の変更で全ピアへ即座に反映できる構造を設計してください。
+
+**解答・解説:**
+* **設計案:** 
+  `template peer-session` を定義し、接続属性（`remote-as 65000`, `update-source Loopback0`, `timers 10 30`, `password`）を集約します [6, Task 4; 22, 1.5.a (i)]。
+  さらに `template peer-policy` を定義し、ポリシー属性（`next-hop-self`, `send-community both`）を集約します [6, Task 4; 22, 1.5.a (i)]。
+  各ネイバー定義では `neighbor <IP> inherit peer-session <NAME>` および `neighbor <IP> inherit peer-policy <NAME>` の 2 行のみをバインドするモデルを構築します。これにより、将来パラメータ変更が発生した際も、該当する 1 つのテンプレートを編集するだけで全 20 ピアへ一括反映されます [6, Task 4]。
+
+---
+
+## 🔗 参考リソース
+
+* [Cisco Systems: BGP Configuration Guide, Cisco IOS XE Release 3S](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/configuration/xe-3s/irg-xe-3s-book.html)
+* [Cisco Command Reference: IP Routing: BGP Command Reference](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/command/irg-cr-book.html)
+* [Cisco Live: BRKRST-3321 - Advanced BGP Architecture and Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html)
+
+---
+
+## 📝 補足（Notes）
+
+* **BGP ピア状態チェクリスト:**
+  1. `show ip bgp summary` で State が `Established` であるか確認 [128, Show ip bgp summary]。
+  2. `Active` または `Connect` の場合は、L3 IP 疎通（Ping）と TCP Port 179 遮断ACL/CoPPの有無をチェック。
+  3. `update-source` と対向の `neighbor` IP アドレスが相互に合致しているか確認 [130, Cisco BGP Overview]。
+
 
 ## 参考リソースリンク
 
