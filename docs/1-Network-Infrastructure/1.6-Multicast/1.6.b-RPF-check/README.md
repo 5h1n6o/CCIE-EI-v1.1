@@ -6,243 +6,494 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 2
 ---
 
-# 1.6.b Reverse Path Forwarding (RPF) Check
+# 1.6.b Reverse path forwarding check
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.6 Multicast」における「1.6.b Reverse path forwarding (RPF) check」について、技術的深掘りと実装シナリオを詳細に整理しました。
+本ページでは、CCIE Enterprise Infrastructure (EI) v1.1 Practical Lab 試験および筆記試験における IP マルチキャスト（および Unicast uRPF）の最重要ルーティング検証メカニズムである **Reverse Path Forwarding Check (RPF Check / RPF 検証)** について、Cisco IOS-XE 17.x（Catalyst 9000 シリーズ、Catalyst 8000v 等）の実装基準に 100% 準拠して詳細に解説します。
 
 ---
 
 ## 📘 概要
 
-**Reverse Path Forwarding (RPF) Check** は、IPマルチキャストルーティングにおけるループ防止とパケット転送の可否を決定するための最も基本的かつ重要なメカニズムです。ユニキャストルーティングが「宛先へのパス」を基準にパケットを転送するのに対し、マルチキャストは「送信元（Source）へのパス」を基準にして転送の正当性を判断します。
+**Reverse Path Forwarding (RPF) Check** とは、ルータが受信したマルチキャストパケット（またはユニキャストパケット）の**送信元 IP アドレス（Source IP）** を参照し、「そのパケットが正しく想定通りのインターフェイス（Reverse Path）から到着したか」を判定するループ防止およびセキュリティ検証メカニズムです。
 
-マルチキャストルータは、マルチキャストパケットを受信した際、そのパケットの **送信元IPアドレス** に基づいてRPFチェックを実行します。パケットが「自身のユニキャストルーティングテーブルに従って、その送信元へ到達するために使用するはずのインターフェイス（RPFインターフェイス）」から流入してきた場合のみ、RPFチェックをパス（成功）とし、パケットの複製と転送（フォワーディング）を継続します。もし、期待されるインターフェイス以外から流入した場合は、ループの可能性があると見なされ、パケットは即座に破棄（ドロップ）されます。
+ユニキャストルーティングが**「宛先 IP アドレス（Destination IP）」** を見てパケットをどのインターフェイスから「送出すべきか（Forwarding）」を決めるのに対し、マルチキャストルーティングは**「送信元 IP アドレス（Source IP）」** を見てパケットがどのインターフェイスから「到着したか（Incoming）」を検証します。RPF Check に合格（Pass）したパケットのみがマルチキャストルーティングテーブル（mroute: OIL = Outgoing Interface List）に従って転送され、不合格（Fail）となったパケットは即座に破棄（Drop）されます。
 
-CCIE EIレベルでは、単一のユニキャストルーティングテーブルに依存しない **Multiprotocol BGP (MBGP)** や **Static Multicast Routes (mroute)** が混在する環境、および **GRE/DMVPNトンネル** を介した複雑なトポロジにおけるRPFの挙動を完璧に制御する能力が問われます。
+### 主な利用目的と適用シーン
+
+1. **マルチキャストトラフィックの永久ルーティングループ防止:**  
+   マルチキャストパケットには TTL 以外のループ検出ヘッダー（AS_PATH や LSA のような機構）が存在しないため、RPF Check が存在しないとループトポロジー内でパケットが無限に増殖・ループします。
+
+2. **マルチキャスト配送ツリー（SPT / Shared Tree）の正常構築:**  
+   PIM Sparse-Mode において、(S,G) の SPT（Shortest Path Tree）構築や (*,G) の RPT（Rendezvous Point Tree）構築時、アップストリームネイバー（RPF Neighbor）を決定する基準となります。
+
+3. **非対称ルーティング環境におけるマルチキャスト通信障害の補正 (Static Mroute):**  
+   ユニキャスト経路とマルチキャスト経路が異なる物理パス（非対称パス）を通る場合、デフォルトの RPF Check は失敗します。`ip mroute` (Static Mroute) や MP-BGP を用いて RPF ネクストホップを手動補正します。
+
+4. **セキュリティ向上 (Unicast RPF / uRPF):**  
+   1.6.b の概念は 4.2.b (iii) Unicast Reverse Path Forwarding (uRPF Strict/Loose Mode) にも直結し、IP スプーフィング攻撃を水際で防止します。
 
 ---
 
 ## 🔑 要点
 
-### 1. RPF インターフェイスの選出ロジック
-
-ルータは以下の優先順位に従って、特定の送信元（Source）またはランデブーポイント（RP）に対するRPFインターフェイスを決定します。
-
-1.  **最長一致（Longest Match）:** 静的マルチキャストルート（`ip mroute`）、MBGP、またはユニキャストRIBの中から、送信元アドレスに最も近く一致するプレフィックスを探します。
-2.  **アドミニストレーティブ・ディスタンス（AD）:** 複数の情報源（例：EIGRPルート vs BGPマルチキャストルート）がある場合、AD値が最も低いものが優先されます。
-3.  **メトリック:** 同一AD値の場合は、送信元へのメトリックが最も低いインターフェイスが選出されます。
-4.  **タイブレーカー:** すべてが同一の場合、通常は隣接ルータのIPアドレスが高い方が選ばれる等の実装依存のルールがあります。
-
-### 2. PIM モードによる RPF 対象の違い
-
-使用している PIM (Protocol Independent Multicast) の動作モードによって、RPFをチェックする対象アドレスが異なります。
-
-*   **PIM Dense Mode / PIM-SM (S,G) Entry:** マルチキャストトラフィックの **送信元（Source）** のIPアドレスに対してRPFチェックを行います。
-*   **PIM Sparse Mode (*,G) Entry:** 共有ツリー上では、**ランデブーポイント（RP）** のIPアドレスに対してRPFチェックを行います。
-
-### 3. RPF 情報を供給するデータベース
-
-OSPFやEIGRPといったユニキャストルーティングプロトコル以外に、マルチキャスト専用のRPFトポロジを構築する手段があります。
-
-*   **Static Mroute (`ip mroute`):** ユニキャストの経路とは無関係に、マルチキャスト専用のRPFインターフェイスを静的に定義します。
-*   **Multiprotocol BGP (Address Family IPv4 Multicast):** BGPを利用してマルチキャスト専用のトポロジ情報を交換します。これはユニキャストの経路が非対称な場合や、特定のリンクをマルチキャスト専用にしたい場合に極めて有効です。
-
----
-
-## 🎯 試験対策 (CCIE EIレベル)
-
-CCIEラボ試験では、意図的にRPFチェックを失敗させる「非対称ルーティング」や「トンネル環境での不整合」がトラブルシューティングの主要なターゲットとなります。
-
-### 1. トンネル越し（GRE/DMVPN）の RPF 失敗
-
-マルチキャストをトンネル経由で通そうとする際、ユニキャストのベストパスが物理インターフェイスを指していると、トンネル経由で届いたマルチキャストパケットはRPF失敗となります。
-*   **対策:** `ip mroute` を使用して、送信元へのRPFがトンネルインターフェイスを向くように明示的に設定する必要があります。
-
-### 2. MBGP によるトポロジ分離
-
-「ユニキャストトラフィックは R1-R2 間の低速リンクを通るが、マルチキャストは R1-R3 間の高速リンクを通るようにせよ」という要件。
-*   **対策:** MBGP (Address Family IPv4 Multicast) で R1-R3 間のネクストホップを広報します。OSPF等のユニキャストメトリックをいじる必要がないため、ネットワーク全体の安定性を損なわずにマルチキャストのみを誘導できます。
-
-### 3. RPF チェックと ECMP (Equal-Cost Multi-Path)
-
-送信元への等コストパスが複数ある場合、デフォルトでは1つのインターフェイスのみがRPFとして選ばれます。
-*   **注意:** PIMの設定で `ip pim multipath` や `ip multicast multipath` コマンドが有効になっていない限り、負荷分散は行われません。ラボでの「特定のパスを通らない」という問題の切り分けに重要です。
-
-### 4. BGP Default Route の挙動
-
-BGPで 0.0.0.0/0 を学習している場合、マルチキャストルータはデフォルトではこれをRPFチェックの対象外とすることがあります（実装によりますが、明示的な許可が必要な場合があります）。スタティックのデフォルトルートとは挙動が異なる場合があるため注意が必要です。
-
----
-
-## 🛠 設定・検証コマンド
-
-### RPF 制御コマンド
-
-| 目的 | コマンド |
+| 項目 | 内容 |
 | :--- | :--- |
-| **静的RPFルートの設定** | <code>ip mroute [送信元NW] [マスク] [RPF_INT&#124;次ホップIP]</code> |
-| **MBGP AFの有効化** | <code>address-family ipv4 multicast</code> |
-| **PIM負荷分散の有効化** | <code>ip multicast multipath</code> |
-| **マルチキャスト境界の定義** | <code>ip multicast boundary [ACL]</code> |
-
-### 検証・トラブルシューティングコマンド
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **RPF情報の直接確認 (最重要)** | <code>show ip rpf [送信元IP]</code> |
-| **マルチキャスト経路詳細表示** | <code>show ip mroute [グループIP] [detail]</code> |
-| **RPF失敗パケットの統計確認** | <code>show ip mroute count</code> |
-| **隣接ルータ情報の確認** | <code>show ip pim neighbor</code> |
-| **PIMインターフェイスの状態** | <code>show ip pim interface</code> |
-| **MBGPで学習したRPFルート確認** | <code>show ip bgp ipv4 multicast</code> |
-| **デバッグ (RPF/PIMイベント)** | <code>debug ip pim [group]</code> <br> <code>debug ip mrouting</code> |
+| **特徴** | 到着パケットの Source IP に対し、ユニキャスト RIB / MRIB を逆引きして「パケットが入ってくるべき正しい Ingress ポート」と「RPF Neighbor」を判定。 |
+| **用途** | IP マルチキャストパケットのループ防止、PIM Join/Prune メッセージの送信先決定、uRPF による IP スプーフィング防止。 |
+| **メリット** | トポロジー構造に関わらずマルチキャストループを 100% 防止可能。コントロールプレーンのオーバーヘッドを抑えてデータプレーンで即時破棄。 |
+| **デメリット** | ユニキャスト経路が非対称（Asymmetric Routing）である場合、正しいマルチキャストパケットが誤って RPF Fail で破棄される。 |
+| **対応機種** | Catalyst 9200/9300/9400/9500/9600, Catalyst 8000v, ISR 4000, ASR 1000 等（Cisco IOS-XE 全般）。 |
+| **制限事項** | ECMP（等コストマルチパス）環境下において、デフォルトでは「最も高い IP アドレスを持つ RPF Neighbor」が単一選出され、マルチパスロードバランシングされない（`ip pim multipath` が必要）。 |
+| **設計上の注意点** | GRE / DMVPN などのトンネル構成や、BGP / OSPF / EIGRP の経路再配送が絡むネットワークでは、RPF パスとユニキャストパスの不一致が多発するため事前の RPF 監査が必須。 |
 
 ---
 
-## 🛠 ラボ学習・設定サンプル例
+## 🏗 動作原理
 
-### 1. 基本的な Static Mroute による RPF 回復
+### 1. マルチキャスト RPF Check の基本フロー
 
-**【問題内容】**
-R1 は R3 からマルチキャストを受信しているが、R1 のユニキャストルートは R2 を向いている。R1-R3 間の直接リンクをマルチキャスト RPF として使用するように設定せよ。
+```text
+[ Multicast Source ] S = 10.1.1.100
+        │
+        ▼
+   (Gi0/1: 10.1.1.1)
+┌────────────────────────────────────────────────────────┐
+│ Router R1                                              │
+│ 1. パケット受領: Src=10.1.1.100, Dst=239.1.1.1          │
+│ 2. RPF Check 実行:                                      │
+│    - Lookup Unicast RIB for 10.1.1.100                │
+│    - Next-Hop Interface = Gi0/1                        │
+│ 3. 比較: パケット到着ポート(Gi0/1) == RPF Port(Gi0/1) ?  │
+└────────────────────────────────────────────────────────┘
+        │
+        ├───────────────────────┬───────────────────────┐
+     [ PASS ]                [ FAIL ]               [ FAIL ]
+  Arrived on Gi0/1        Arrived on Gi0/2       Arrived on Gi0/3
+        │                       │                       │
+        ▼                       ▼                       ▼
+  パケットを OIL へ転送   パケットを即時破棄     パケットを即時破棄
+  (Forward Packet)       (RPF Drop Count +1)    (RPF Drop Count +1)
+```
 
-**【設定例】**
-```ios
-! R1 側で設定
-! 送信元 10.1.3.0/24 へのRPFを Gi0/3 インターフェイスに固定
-ip mroute 10.1.3.0 255.255.255.0 GigabitEthernet0/3
+### 2. PIM Sparse-Mode における RPF の二重性 ((S,G) vs (*,G))
+
+* **(*,G) RPT (Shared Tree) の RPF Check:**  
+  * 対象アドレス: **RP (Rendezvous Point) の IP アドレス**  
+  * ルータは RP の IP アドレスに対してユニキャスト RIB を参照し、RP に向かうインターフェイスを Incoming Interface、そのネクストホップルータを **RPF Neighbor** とみなします。
+* **(S,G) SPT (Shortest Path Tree) の RPF Check:**  
+  * 対象アドレス: **マルチキャスト送信元 (Source) の IP アドレス**  
+  * ルータは送信元ホストの IP アドレスに対してユニキャスト RIB を参照し、送信元に向かうインターフェイスを Incoming Interface、そのネクストホップルータを **RPF Neighbor** とみなします。
+
+---
+
+## ⚙ 動作シーケンス
+
+```text
+1. [パケット受信]
+   マルチキャストパケット (Src: 10.1.1.100, Dst: 239.1.1.1) が Interface Gi0/2 に到着。
+
+2. [MRIB / Unicast RIB ルックアップ]
+   ルータは Src IP (10.1.1.100) に合致するロンゲストマッチ経路をユニキャスト RIB (または MRIB / Static Mroute) から検索。
+
+3. [RPF インターフェイス & RPF Neighbor の決定]
+   RIB 検索結果:
+   - プレフィックス: 10.1.1.0/24
+   - 出力インターフェイス: GigabitEthernet0/1
+   - ネクストホップ IP: 10.1.12.1 (RPF Neighbor)
+
+4. [RPF 適合判定 (RPF Check)]
+   パケット受信用 Port (Gi0/2) と RIB 検索結果 Port (Gi0/1) を照合。
+   -> 不一致 (Gi0/2 != Gi0/1) ⇒ RPF FAIL
+
+5. [パケット破棄 & カウンタ加算]
+   パケットを CEF / データプレーン階層で即座にドロップ。
+   `show ip mroute count` の "RPF-failed" カウンタを +1 インクリメント。
 ```
 
 ---
 
-### 2. MBGP を用いた非対称 RPF の構成
+## 🎯 試験対策（CCIE EIラボ試験）
 
-**【問題内容】**
-ユニキャストは OSPF を使用し、マルチキャスト RPF 情報は BGP を使用して R1 と R2 の間で交換せよ。
+CCIE EI Practical Lab 試験において、1.6.b RPF Check は「RPF チェックを設定しなさい」という直接的な設問ではなく、**「マルチキャスト通信が通らない障害のトラブルシューティング」** や **「非対称ルーティング環境で Static Mroute / MP-BGP を使用して RPF を正常化させなさい」** という形式で 100% 登場します。
 
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.12.2 remote-as 100
+### 1. 試験で狙われる定番障害パターンと対策
+
+#### ① 非対称ルーティング（Asymmetric Routing）による RPF Fail
+* **シナリオ:** R1 から R2 へのユニキャストは Path-A（Gi0/1）を通るが、戻りの通信やマルチキャスト送信元からのパケットが Path-B（Gi0/2）から届く。
+* **現象:** `show ip mroute` を確認すると、`(10.1.1.100, 239.1.1.1)` の Incoming interface が `Gi0/1` になっているが、実際のパケットは `Gi0/2` から入ってくるため RPF Fail で破棄される。
+* **解決策:**
+  * **対策 A:** `ip mroute 10.1.1.100 255.255.255.255 GigabitEthernet0/2` を設定し、特定 Source に対する RPF インターフェイスを明示的に上書きする。
+  * **対策 B:** MP-BGP (SAFI 2: Multicast) を導入し、マルチキャスト専用の RPF 経路を動的伝搬させる。
+
+#### ② Equal-Cost Multipath (ECMP) 環境下での RPF Neighbor 固定化
+* **シナリオ:** Source へのユニキャスト経路に 2 つの等コストパス（10.1.12.2 と 10.1.13.3）が存在する。
+* **現象:** デフォルトでは、OSPF / EIGRP の ECMP であっても、EIGRP / OSPF のネクストホップ IP アドレスが最も大きいルータ（10.1.13.3）のみが単一の RPF Neighbor として選出される。他方のパスから届いたパケットは RPF Fail になる。
+* **解決策:**
+  * `ip pim multipath` (Classic Mode) または `address-family ipv4` 配下でマルチパスを有効化し、両方のパスからのマルチキャストパケットを受容できるようにする。
+
+#### ③ Tunnel / DMVPN 環境における RPF Fail
+* **シナリオ:** DMVPN (mGRE) 上で PIM Sparse-Mode を動作させているが、物理インターフェイスからパケットが届いてしまう。
+* **現象:** Unicast RIB が Tunnel0 を向いているのに物理ポート Gi0/0 から届いた、あるいはその逆で RPF Fail になる。
+* **解決策:** `ip mroute` で Tunnel インターフェイスを明示的に指定するか、`ip pim sparse-mode` を Tunnel および物理インターフェイスの適切な側に構成する。
+
+---
+
+## 🛠 設定方法
+
+### 1. Static Mroute (`ip mroute`) による RPF 上書き設定
+
+```bash
+# 特定の送信元 (10.1.100.0/24) に対する RPF ネクストホップを Gi0/2 (10.1.25.2) に固定
+R1(config)# ip mroute 10.1.100.0 255.255.255.0 10.1.25.2
+
+# ディスタンス値を変更して Static Mroute をユニキャスト RIB より優先化 (デフォルト AD = 0)
+R1(config)# ip mroute 10.1.100.0 255.255.255.0 GigabitEthernet0/2 10.1.25.2 5
+```
+
+### 2. ECMP 環境における PIM Multicast Multipath (RPF 拡張)
+
+```bash
+# 等コストマルチパス上で複数パスからの RPF チェック通過を許可
+R1(config)# ip pim multipath
+```
+
+### 3. MBGP (MP-BGP SAFI 2) による RPF 経路の動的伝搬
+
+```bash
+router bgp 65000
  address-family ipv4 multicast
   neighbor 10.1.12.2 activate
-  network 10.1.1.0 mask 255.255.255.0
+  network 10.1.100.0 mask 255.255.255.0
+ exit-address-family
 ```
 
 ---
 
-### 3. GRE トンネルを介した RPF 設定
+## 🔍 検証コマンド
 
-**【問題内容】**
-R1 と R4 の間に GRE トンネルを構築した。R4 背後のマルチキャストソース (10.4.4.4) からのパケットをトンネルインターフェイス経由で受け入れるように R1 を構成せよ。
+| 目的 | コマンド |
+| :--- | :--- |
+| **特定の Source / RP に対する RPF 判定結果の確認** | <code>show ip rpf 10.1.100.100</code> |
+| **mroute テーブルと Incoming Interface (RPF Port) の確認** | <code>show ip mroute 239.1.1.1</code> |
+| **RPF Check エラー（破棄数）のリアルタイムカウント確認** | <code>show ip mroute count</code> |
+| **設定されている Static Mroute 一覧の確認** | <code>show ip mroute static</code> |
+| **PIM ネイバーおよび RPF 相手の確認** | <code>show ip pim neighbor</code> |
+| **RPF チェック通過 / 破棄イベントのリアルタイムデバッグ** | <code>debug ip mroute 239.1.1.1</code> / <code>debug ip pim</code> |
 
-**【設定例】**
-```ios
-! R1 側
+### `show ip rpf` の出力読解例
+
+```text
+R1# show ip rpf 10.1.100.100
+RPF information for ? (10.1.100.100)
+  RPF interface: GigabitEthernet0/2                     <-- RPF インターフェイス
+  RPF neighbor: ? (10.1.25.2)                           <-- RPF ネイバー IP
+  RPF route/mask: 10.1.100.0/24                         <-- マッチした経路
+  RPF type: mroute (static)                             <-- 決定要因 (static mroute)
+  Doing distance-preferred lookups across IP unicast and mroute
+  RPF topology: ipv4 multicast base
+```
+
+---
+
+## 🚨 トラブルシュート
+
+| 症状 | 原因 | 確認コマンド | 対処方法 |
+| :--- | :--- | :--- | :--- |
+| **マルチキャストトラフィックが対向ルータに届いているが、それ以降に転送されない。** | 到着インターフェイスが RPF インターフェイスと一致しておらず、RPF Fail で破棄されている。 | <code>show ip rpf <Source-IP></code><br><code>show ip mroute count</code> | `ip mroute <Source-IP> <Mask> <Correct-Int>` を投入して RPF を正しく修正する。 |
+| **`show ip rpf` の結果が "RPF neighbor: 0.0.0.0 (directly connected)" になる。** | 送信元 IP に対するユニキャスト経路が存在しない（Unicast Reachability 不在）。 | <code>show ip route <Source-IP></code> | IGP / Static ルートを設定し、Source IP へのユニキャスト可達性を確保する。 |
+| **等コストマルチパス (ECMP) 環境で片方のリンクからのマルチキャストパケットのみドロップされる。** | デフォルトでは RPF は IP の大きい単一の RPF Neighbor のみを受容するため。 | <code>show ip rpf <Source-IP></code> | グローバルコンフィグで <code>ip pim multipath</code> を有効化する。 |
+| **RPF Neighbor が PIM アジャセンシーを確立していない。** | パケットが届くインターフェイス上で `ip pim sparse-mode` が有効化されていない。 | <code>show ip pim interface</code><br><code>show ip pim neighbor</code> | 該当インターフェイスで <code>ip pim sparse-mode</code> を設定する。 |
+
+---
+
+## ⚠ 制限事項
+
+1. **Unicast RIB 非依存動作の限界:**
+   * RPF Check はデフォルトで Unicast RIB（ルーティングテーブル）に依存します。ユニキャストのルーティングが破綻している環境では、マルチキャストの RPF Check も自動的に破綻します。
+2. **Static Mroute の優先度 (AD):**
+   * `ip mroute` はデフォルトで AD=0 (最優先) となるため、ユニキャスト経路を変更してもマルチキャスト RPF パスは追従しません。
+
+---
+
+## 🔄 他技術との関連
+
+* **EIGRP / OSPF / BGP:**
+  ユニキャスト IGP/EGP が構築する RIB テーブルが、RPF Check の一次情報源として利用されます。
+* **PIM Sparse-Mode:**
+  Join / Prune メッセージは、RPF Check によって選出された RPF Neighbor に向かって送出されます。
+* **uRPF (Unicast Reverse Path Forwarding):**
+  1.6.b の RPF Check と同一の理論を用いて、セキュリティ面でユニキャスト IP スプーフィング攻撃を防止します (4.2.b (iii))。
+
+---
+
+## 🧩 比較表
+
+### RPF Check 判定ソースの比較
+
+| 判定ソース | 優先度 (デフォルト) | 設定方法 | 用途・特徴 |
+| :--- | :--- | :--- | :--- |
+| **Static Mroute (`ip mroute`)** | 最優先 (AD 0) | <code>ip mroute <Src> <Mask> <NH></code> | 非対称パスの局所的修正・手動制御 |
+| **MP-BGP Multicast (SAFI 2)** | 第2位 (AD 20/200) | <code>address-family ipv4 multicast</code> | AS 間・ドメイン間での動的 RPF 経路共有 |
+| **Unicast RIB (IGP/Static)** | 第3位 (AD 依拠) | 通常の IGP / IP Route | デフォルトの動作。ユニキャストパスと同一 |
+
+---
+
+## 💡 ベストプラクティス
+
+1. **マルチキャスト導入前の `show ip rpf` 監査:**
+   送信元ホスト (Source) および RP アドレスに対する RPF パスを事前検証し、非対称ルーティングが存在しないか確認する。
+2. **等コスト冗長網での `ip pim multipath` 適用:**
+   ECMP 構成をとるキャンパス/DC 網では、`ip pim multipath` を標準適用してロードバランシングと RPF Fail を防止する。
+
+---
+
+## 📝 ラボ学習・設定サンプル例
+
+以下は、CCIE EI ラボ試験レベルに対応する省略なしの 10 個の演習シナリオです。
+
+### Scenario 1: 単一送信元に対する Static Mroute による RPF 修正
+* **要件:** R1 から Source (10.1.100.50) へのユニキャスト経路は Gi0/1 を向いているが、マルチキャストパケットは Gi0/2 から届く。`ip mroute` を使用して Gi0/2 (10.1.12.2) を RPF インターフェイスとして定義せよ。
+
+**【R1】**
+```bash
+configure terminal
+!
+ip mroute 10.1.100.50 255.255.255.255 10.1.12.2
+end
+```
+
+**【検証方法】**
+```bash
+R1# show ip rpf 10.1.100.50
+# RPF interface: GigabitEthernet0/2, RPF type: mroute (static) を確認
+```
+
+---
+
+### Scenario 2: ECMP 環境での PIM Multipath 有効化
+* **要件:** R1-R2 間に 2 つの等コストリンク (Gi0/1: 10.1.12.2, Gi0/2: 10.1.22.2) が存在する。両方のリンクからのマルチキャストパケットを RPF Check 通過させよ。
+
+**【R1】**
+```bash
+configure terminal
+!
+ip pim multipath
+end
+```
+
+**【検証方法】**
+```bash
+R1# show ip rpf 10.1.100.1
+# Multipath が有効化されていることを確認
+```
+
+---
+
+### Scenario 3: Administrative Distance を指定した Floating Static Mroute
+* **要件:** Source (172.16.1.0/24) への RPF チェックにおいて、通常は Unicast RIB を使用し、Unicast RIB がダウンした時のみ Gi0/3 (10.1.35.3) を RPF Neighbor とする Back-up Mroute (AD 150) を構成せよ。
+
+**【R1】**
+```bash
+configure terminal
+!
+ip mroute 172.16.1.0 255.255.255.0 10.1.35.3 150
+end
+```
+
+**【検証方法】**
+```bash
+R1# show ip mroute static
+```
+
+---
+
+### Scenario 4: MP-BGP (SAFI 2) による RPF 専用経路の配信
+* **要件:** R1 と R2 間で MP-BGP IPv4 Multicast アドレスファミリーを構成し、192.168.10.0/24 網をマルチキャスト RPF 専用ルートとして送出せよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ neighbor 10.1.12.2 remote-as 65001
+ !
+ address-family ipv4 multicast
+  neighbor 10.1.12.2 activate
+  network 192.168.10.0 mask 255.255.255.0
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R2# show ip rpf 192.168.10.1
+# RPF type: BGP multicast を確認
+```
+
+---
+
+### Scenario 5: GRE トンネル経由の RPF 修正
+* **要件:** R1-R3 間の GRE トンネル (Tunnel0) を介してマルチキャスト RPF チェックを通過させよ。
+
+**【R1】**
+```bash
+configure terminal
+!
 interface Tunnel0
+ ip address 172.16.13.1 255.255.255.0
+ tunnel source GigabitEthernet0/1
+ tunnel destination 10.1.23.3
  ip pim sparse-mode
 !
-ip mroute 10.4.4.4 255.255.255.255 Tunnel0
+ip mroute 10.3.3.0 255.255.255.0 Tunnel0
+end
+```
+
+**【検証方法】**
+```bash
+R1# show ip rpf 10.3.3.3
+# RPF interface: Tunnel0 を確認
 ```
 
 ---
 
-### 4. PIM-SM (*,G) に対する RP への RPF 確認
+### Scenario 6: RP (Rendezvous Point) に対する RPF Check 検証
+* **要件:** PIM Sparse-Mode における RP (10.2.2.2) への RPF チェックが Gi0/2 を通るように Static Mroute を設定せよ。
 
-**【問題内容】**
-PIM Sparse-Mode 環境において、共有ツリー (*,G) が構築されない原因が RP (1.1.1.1) への RPF 失敗であることを確認し、修正せよ。
+**【R1】**
+```bash
+configure terminal
+!
+ip mroute 10.2.2.2 255.255.255.255 GigabitEthernet0/2
+end
+```
 
-**【検証・設定】**
-```ios
-R2# show ip rpf 1.1.1.1
-! 期待される出力がない、あるいは不正なIFを向いている場合
-R2(config)# ip mroute 1.1.1.1 255.255.255.255 10.1.12.1
+**【検証方法】**
+```bash
+R1# show ip rpf 10.2.2.2
 ```
 
 ---
 
-### 5. Distance 操作による RPF 選択の優先順位変更
+### Scenario 7: VRF 環境での Static Mroute 構成 (Multi-Tenant)
+* **要件:** VRF `TENANT_A` 内の送信元 (10.10.1.0/24) に対する Static Mroute を構成せよ。
 
-**【問題内容】**
-EIGRP で学習しているユニキャストパスよりも、Static mroute で設定したパスを優先して RPF として使用させよ。
+**【R1】**
+```bash
+configure terminal
+!
+ip mroute vrf TENANT_A 10.10.1.0 255.255.255.0 GigabitEthernet0/1.100 10.10.12.2
+end
+```
 
-**【設定例】**
-```ios
-! ip mroute のデフォルトADは 0 なので通常は最優先されるが
-! 明示的に指定する場合
-ip mroute 10.0.0.0 255.0.0.0 10.1.12.2 1  ! ADを 1 に設定
+**【検証方法】**
+```bash
+R1# show ip rpf vrf TENANT_A 10.10.1.50
 ```
 
 ---
 
-### 6. MBGP とユニキャスト再配送の使い分け
+### Scenario 8: PIM Dense Mode における RPF ドロップ監査
+* **要件:** R1 で発生している RPF ドロップパケットをリアルタイムデバッグにより監査せよ。
 
-**【問題内容】**
-OSPF ルートを BGP マルチキャストアドレスファミリーへ再配送し、BGP ネイバーへ RPF 情報として通知せよ。
+**【R1】**
+```bash
+R1# debug ip mroute detail
+R1# debug ip pim 239.1.1.1
+```
 
-**【設定例】**
-```ios
-router bgp 100
- address-family ipv4 multicast
-  redistribute ospf 1
+**【検証方法】**
+```bash
+# コンソール出力で "RPF failed" または "Drop" ログを確認
 ```
 
 ---
 
-### 7. RPF 失敗時のデバッグ出力の解析
+### Scenario 9: RPF ルックアップポリシーの変更 (`distance-preferred` vs `longest-match`)
+* **要件:** Static Mroute と Unicast RIB が競合した際、常にディスタンス値（AD）が低い方を最優先して RPF 選定を行うよう動作を固定せよ。
 
-**【問題内容】**
-マルチキャストパケットがドロップされている理由を debug コマンドで特定せよ。
+**【R1】**
+```bash
+configure terminal
+!
+ip mroute distance-preferred
+end
+```
 
-**【検証】**
-```ios
-R1# debug ip mrouting
-! 出力例: "MRT: RPF lookup failed for 10.1.1.100" 
-! を確認し、show ip rpf 10.1.1.100 で不整合を特定する
+**【検証方法】**
+```bash
+R1# show ip rpf 10.1.100.1
 ```
 
 ---
 
-### 8. マルチキャスト ECMP 負荷分散の設定
+### Scenario 10: RPF Fail トラブルシューティング演習
+* **要件:** Host-A (10.1.1.100) から送出される 239.5.5.5 へのパケットが R1 で破棄される。RPF カウンタを確認し、Static Mroute で復旧させよ。
 
-**【問題内容】**
-2つの等コストパス（Gi0/1 と Gi0/2）を両方 RPF インターフェイスとして使用し、グループごとにパスを分散させよ。
+**【診断・復修手順】**
+```bash
+# 1. ドロップ状態の確認
+R1# show ip mroute count
+# 239.5.5.5 の RPF-failed カウンタがインクリメントされていることを確認
 
-**【設定例】**
-```ios
-ip multicast multipath
-! または
+# 2. 現在の RPF ネイバー確認
+R1# show ip rpf 10.1.1.100
+# 想定と異なる Port (Gi0/1) を指していることを確認
+
+# 3. 修正設定の投入
+R1(config)# ip mroute 10.1.1.100 255.255.255.255 GigabitEthernet0/2
+
+# 4. 復旧確認
+R1# show ip mroute 239.5.5.5
+# Forwarding 状態に遷移したことを確認
+```
+
+---
+
+## ❓ 想定試験問題
+
+### 1. 【トラブルシューティング】非対称パスによる RPF ドロップ
+**問題:**  
+R1 において、マルチキャストグループ `239.10.10.10`（送信元 `10.1.50.5`）のレシーバーが Join しているにもかかわらず、動画ストリームが受領できません。`show ip mroute count` を実行すると RPF-failed カウンタが増加していました。ユニキャスト経路を変更することなく、R1 上でこの通信を正常化する最も適切なコンフィグを記述してください。
+
+**解答・解説:**  
+* **原因:** 送信元 `10.1.50.5` へのユニキャスト RIB 経路が指すポートと、実際にマルチキャストパケットが流入する物理ポートが異なっている（非対称ルーティング）。
+* **修正コンフィグ:**
+  ```text
+  ip mroute 10.1.50.5 255.255.255.255 <パケットが届く実際の入力インターフェイス/ネクストホップIP>
+  ```
+
+---
+
+### 2. 【コンフィグ読解】`ip pim multipath` の動作
+**問題:**  
+以下のコンフィグが投入されたルータ R1 の動作について正しい説明を選びなさい。
+```text
 ip pim multipath
 ```
+A. PIM パケットが ECMP リンク上でラウンドロビン方式で送信される。  
+B. 送信元 IP へのユニキャスト経路が等コストマルチパス (ECMP) である場合、複数リンクからの同一マルチキャストパケット受容（RPF チェック通過）が許可される。  
+C. マルチキャストトラフィックが 2 つの等コストパスへ 50% ずつロードバランシングされて送出される。  
+D. PIM Sparse-Mode が PIM Dense-Mode に自動切替される。
+
+**解答・解説:**  
+* **正解:** **B**
+* **解説:** デフォルトの RPF Check では ECMP リンクが存在しても IP アドレスの大きい単一の RPF Neighbor のみが選ばれますが、`ip pim multipath` を有効化することで、ECMP 構成上の複数の RPF パスからのパケット受容が許可されます。
 
 ---
 
-### 9. VRF 環境における RPF 設定
+## 🔗 参考リソース
 
-**【問題内容】**
-VRF「CUSTOMER_A」において、マルチキャスト RPF を静的に設定せよ。
-
-**【設定例】**
-```ios
-ip mroute vrf CUSTOMER_A 192.168.10.0 255.255.255.0 172.16.1.1
-```
+* [Cisco Systems: IP Multicast Configuration Guide, Cisco IOS XE Release 17.x](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/ipmulti_pim/configuration/xe-16/imc-pim-xe-16-book.html)
+* [Cisco Command Reference: ip mroute / show ip rpf](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/ipmulti_pim/command/imc-cr-book.html)
+* [Cisco Live: BRKMRT-2101 - Multicast Routing Architecture and Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html)
 
 ---
 
-### 10. DMVPN Phase 3 での RPF 解決
+## 📝 補足（Notes）
 
-**【問題内容】**
-DMVPN スポーク間で直接マルチキャストを転送させるため、NHS (Hub) への RPF 依存を解消する NHRP マッピングを確認せよ。
+* **RPF Check 簡易確認フロー:**
+  `パケット受信` ➔ `Src IP の Unicast RIB 検索` ➔ `受信 Port == RIB 出力 Port ?`
+  - **YES** ➔ [PASS] OIL (Outgoing Interface List) へ転送
+  - **NO** ➔ [FAIL] 即刻破棄 (RPF-failed +1)
 
-**【設定例】**
-```ios
-interface Tunnel0
- ip nhrp map multicast dynamic
-! 検証
-show ip rpf [Spoke_Loopback]
-```
-
----
 
 ## 📘 参考リソースリンク
 
