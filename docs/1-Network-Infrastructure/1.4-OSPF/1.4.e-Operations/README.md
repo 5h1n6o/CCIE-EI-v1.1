@@ -6,278 +6,458 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 5
 ---
 
-# 1.4.e OSPF Operations
+# 1.4.e Operations
 
-CCIE Enterprise Infrastructure (EI) v1.1のBlueprint項目「1.4 OSPF (v2 and v3)」における「1.4.e Operations（運用・動作）」について整理しました。
+本ページでは、CCIE Enterprise Infrastructure (EI) v1.1 Practical Lab 試験および筆記試験における最重要 routing プロトコルのコア運用メカニズムである **OSPF Operations（一般運用・Graceful shutdown・GTSM）** について、Cisco IOS-XE 17.x の実装基準に完全準拠して詳細に解説します [21, 1.4.e]。
 
 ---
 
 ## 📘 概要
 
-**OSPF Operations（OSPFの動作と運用）**は、リンクステート型ルーティングプロトコルとしてのOSPFが、どのようにネットワークの「地図」を構築し、維持し、そして安全に停止・保護するかを定義する広範なトピックです。
+OSPF（Open Shortest Path First）における **Operations（運用制御・メカニズム）** とは、OSPF プロトコルがルーティング情報の交換（LSA Flooding・SPF 計算・LSDB 同期）を行う定常動作から、メンテナンスや障害時の迅速かつ無瞬断的なプロセスの停止（Graceful Shutdown）、およびコントロールプレーンに対する外部攻撃防御（GTSM: Generic TTL Security Mechanism）までを含む一連の制御・セキュリティ機能群です [21, 1.4.e]。
 
-OSPFv2 (IPv4) および OSPFv3 (IPv6/Multi-AF) の基本動作は、ハローパケットによるネイバー発見、リンクステートデータベース（LSDB）の同期、そしてSPF（Shortest Path First）アルゴリズムによる経路計算の3段階で構成されます。CCIEレベルでは、これらの標準的な動作に加え、メンテナンス時の通信断を最小化する **Graceful Shutdown（グレースフルシャットダウン）** や、コントロールプレーンの攻撃からルータを保護する **GTSM (Generic TTL Security Mechanism)** といった高度な運用機能の完全な制御が求められます。
+### 主な利用目的と適用シーン
+1. **LSA Flooding & LSDB の定常維持（General Operations）:** 5 種類の OSPF パケット型と 30 分周期の LSA 周期刷新（Refresh）、60 分での MaxAge 廃棄により、リンクステートデータベース（LSDB）の不整合を常時防止・補正する [21, 1.4.e]。
+2. **無影響メンテナンス（Graceful Shutdown）:** ノードの保守や一時撤去時に、トラフィックのドロップ（ブラックホール）を発生させることなく、隣接ルータへ即座に Goodbye / Max-Metric LSA 通知を行って別経路へ無瞬断で迂回させる [21, 1.4.e, 1.4.f (iii)]。
+3. **インフラセキュリティ保護（GTSM - RFC 5082）:** 遠隔（複数ホスト離れた場所）から悪意を持って送られてくる偽装 OSPF パケットや DoS 攻撃を、IP ヘッダーの TTL（Time To Live = 255）検証によって物理 ASIC / コントロールプレーン手前で瞬時に破棄・防御する [21, 1.4.e (iii), 4.1.a]。
 
 ---
 
 ## 🔑 要点
 
-### 1. General Operations (全般的な動作)
-
-OSPFの健全な運用には、以下のプロセスが正しく機能している必要があります。
-
-*   **Router-ID の一意性:** OSPFプロセス内で自身を識別するための32ビット値。OSPFv3では、IPv4アドレスが設定されていない場合でも手動での固定設定が必須です。
-*   **LSA（Link State Advertisement）の同期:** 
-    *   **Type 1 (Router LSA):** 全ルータが生成。自身のリンク情報を通知。
-    *   **Type 2 (Network LSA):** DRが生成。セグメント内の隣接ルータ情報を通知。
-    *   **LSA の再送メカニズム:** 信頼性の高い同期を保証するため、LSA 受信時に ACK を返します。
-*   **Passive-Interface:** 特定のインターフェイスでハローの送受信を停止し、不要な隣接関係の形成を防ぎつつ、そのネットワーク情報を広報します。
-
-### 2. Graceful Shutdown (グレースフルシャットダウン)
-
-従来のOSPF停止（プロセス削除やインターフェイスのダウン）では、隣接ルータがデッドタイマーの満了を待つ必要があり、コンバージェンスに遅延が生じていました。
-
-*   **動作原理:** `shutdown` コマンドを実行すると、ルータはネイバーに対し、メトリックを最大値（65535）にセットしたLSAや、ハローパケット内での通知（LSAのフラッシュ）を行います。
-*   **効果:** 対向ルータは即座に当該ルータを経由しない経路への切り替え（再計算）を開始できるため、パケットロスを最小限に抑えられます。
-
-### 3. GTSM (Generic TTL Security Mechanism)
-
-OSPFネイバーに対するスプーフィング攻撃やCPU負荷攻撃を防止するためのセキュリティ機能です（RFC 5082）。
-
-*   **メカニズム:** 通常のIPパケットはTTL（Time To Live）を「1」など小さい値から始めますが、GTSMを有効にしたOSPFルータは、パケット送信時のTTLを **「255」** にセットします。
-*   **受信チェック:** 受信側ルータは、パケットのTTLが「255」であることを確認します。もし中継ルータ（攻撃者）を経由していれば、TTLは必ず254以下に減少しているため、直接接続されていない不正なパケットを即座に破棄できます。
+| 項目 | 内容 |
+| :--- | :--- |
+| **特徴** | ① LSA の階層型エージング管理（30分 Refresh / 60分 MaxAge）<br>② コントロールプレーンの明示的停止による高速コンバージエンス（`shutdown`）<br>③ TTL=255 固定と逆算チェックによる CPU 保護（GTSM） [21, 1.4.e]。 |
+| **用途** | エンタープライズ網・SD-Access アンダーレイ網における安定運用、計画メンテナンス時のトラフィック迂回、およびコントロールプレーン保護 [21, 1.4.e, 4.1.a]。 |
+| **メリット** | ・`shutdown` 設定により Hold Timer（40秒）の満了を待たずに即時迂回が可能。<br>・GTSM により対向が 1 ホスト（直結）でない不審な OSPF パケットを即座に破棄可能 [21, 1.4.e]。 |
+| **デメリット** | ・GTSM を有効化する場合、対向ルータ側でも GTSM (TTL=255) の対応が必要（非対応機との間でアジャセンシー切断）。<br>・仮想リンク（Virtual-link）や Multi-hop 環境では GTSM の Hop-count 設計に配慮が必要。 |
+| **対応機種** | Cisco Catalyst 9000 シリーズ、Catalyst 8000v、ISR/ASR シリーズ（IOS-XE 16.x / 17.x 全全機種サポート）。 |
+| **制限事項** | OSPFv2 と OSPFv3（Address Family モード含む）で設定構文が異なる（`ip ospf ttl-security` vs `ospfv3 ttl-security`） [21, 1.4.b, 1.4.e]。 |
+| **設計上の注意点** | メンテナンス時は `shutdown` または `max-metric router-lsa`（Stub Router）を事前投入してトラフィックが迂回したことを確認してから物理切断を行う。 |
 
 ---
 
-## 🎯 試験対策 (CCIE EIレベル)
+## 🏗 動作原理
 
-CCIEラボ試験では、OSPFの運用に関連して以下のような高度なトラブルシューティングや制約付き設定が課されます。
+### 1. General Operations (5種類のパケットと LSA エージング)
+OSPF は IP プロトコル番号 **89** を使用し、以下の 5 種類のパケットで運用されます。
 
-### 1. Router-ID 競合の特定
+```text
+[ 1. Hello Packet ] ──► ネイバー検知・Keepalive (224.0.0.5)
+[ 2. DBD Packet ]   ──► LSDB 要約の交換・マスター/スレーブ選出
+[ 3. LSR Packet ]   ──► 不足 LSA の詳細要求 (Link State Request)
+[ 4. LSU Packet ]   ──► LSA 情報の実更新・拡散 (Link State Update)
+[ 5. LSAck Packet ] ──► LSU に対する確認応答 (Link State Ack)
+```
 
-「OSPF隣接関係がFULLになるが、特定のルートがデータベースに現れない」といったシナリオ。
-*   **原因:** ネットワーク内に Router-ID が重複しているルータが存在すると、LSAの破棄やフラッピングが発生します。
-*   **対策:** `show ip ospf` で自身のIDを確認し、重複を排除します。
-
-### 2. インターフェイス・デフォルトの効率的な管理
-
-「すべてのインターフェイスをパッシブにしつつ、バックボーン接続のみを有効化せよ」という最小コマンド数のタスク。
-*   **実装:** `passive-interface default` を設定した上で、必要なポートのみを `no passive-interface` で開放する設計。
-
-### 3. GTSM の適用範囲とホップ数
-
-GTSMはデフォルトで直接接続（Hop 1）を想定しますが、仮想リンク（Virtual-link）を使用している場合にどのように動作させるかが問われます。
-*   **ポイント:** GTSMは直接接続のネイバー保護が主目的ですが、設定により複数ホップを許容することも可能です。
-
-### 4. メンテナンスシナリオにおける Graceful Shutdown
-
-「R1のOSPFプロセスを停止させる際、R2/R3側の通信への影響を最小限にせよ」という要件。
-*   `no router ospf` でプロセスを消すのではなく、`shutdown` コマンドを使用して「お別れ」メッセージを送る必要があります。
+* **LSA Age:** LSA ヘッダー内で 0 〜 3600 秒（60分）までカウント。
+* **LSA Refresh (1800秒 = 30分):** 生成ルータは 30 分ごとに LSA 固有の Sequence Number をインクリメント（`0x80000001` ➔ `0x80000002`）して再生成・拡散。
+* **MaxAge (3600秒 = 60分):** 60 分間刷新されなかった LSA、または明示的に削除するため Age=3600 で送出された LSA は LSDB から即時削除。
 
 ---
 
-## 🛠 設定・検証コマンド
+### 2. Graceful Shutdown (プロセスの安全停止)
+従来の物理切断やプロセス消去では、対向ルータが Dead Timer（デフォルト 40 秒）満了まで障害を検知できず、パケットドロップ（ブラックホール）が発生していました。
 
-### 設定コマンド
+`shutdown` コマンドを OSPF プロセスまたはインターフェイスで投入すると：
+1. 該当ルータは所有する全 LSA の LSA Age を **3600 (MaxAge)** に設定して LSU を送出。
+2. 対向ルータは該当 LSA を LSDB から即時フラッシュし、SPF 計算を再実行して迂回経路へ切替。
+3. 最後に **Hello パケットの送出を完全停止** し、安全にアジャセンシーを DOWN 状態へ移行。
+
+```text
+[ Router A (Maintenance) ]                        [ Router B ]
+     │                                                 │
+     │───── 1. LSU (MaxAge=3600 LSA Flash) ──────────►│ (即座に LSDB 削除 & SPF 再計算)
+     │◄──── 2. LSAck ──────────────────────────────────│
+     │                                                 │
+     │───── 3. Stop sending Hello Packets ────────────►│ (Adjacency DOWN)
+     ▼                                                 ▼
+(OSPF Process Terminated Safely)             (Traffic Fully Rerouted)
+```
+
+---
+
+### 3. GTSM (Generic TTL Security Mechanism - RFC 5082)
+GTSM は、直結（1 ホスト離れ）の OSPF ネイバー間で交換される IP パケットの TTL（Time To Live）を検証するセキュリティメカニズムです [21, 1.4.e (iii), 4.1.a]。
+
+* **従来の脆弱性:** 送信元 IP をスプーフィングした攻撃者が、遠隔（例えば 10 ホスト先）から TTL=100 等で宛先 `224.0.0.5` や自機 IP へ大量の偽装 OSPF パケットを送りつけ、CPU 枯渇（DoS 攻撃）を引き起こすリスク。
+* **GTSM の防御原理:**
+  1. 送信側ルータは OSPF パケットの IP ヘッダー TTL を **常に 255（最大値）** で送信。
+  2. 受信側ルータはパケットの IP TTL を検証。**「`255 - hop_count`」** ルールを適用。
+  3. 直結ネイバー（`hops 1`）の場合、**`TTL >= 254`**（255 - 1 + 1）でないパケットは **物理 ASIC 階層で即座にドロップ**。CPU や OSPF プロセスへ到達させない。
+
+```text
+[ Attacker (10 Hops Away) ]                        [ Victim Router ]
+     │                                                     │
+     │─── Fake OSPF Packet (TTL = 245) ───────────────────►│ (GTSM Check: TTL < 254)
+     │                                                     │ ➔ DROP at ASIC Hardware
+     │                                                     │   (Control Plane Protected!)
+
+[ Legitimate Neighbor ]                                    │
+     │                                                     │
+     │─── Valid OSPF Packet (TTL = 255) ──────────────────►│ (GTSM Check: TTL >= 254)
+     │                                                     │ ➔ ACCEPT & Processed by OSPF
+```
+
+---
+
+## ⚙ 動作シーケンス
+
+### OSPF GTSM パケット処理シーケンス
+1. インターフェイス上で OSPF パケット（Hello / DBD / LSU 等）を受信。
+2. IP ヘッダーの TTL フィールドをチェック。
+3. `ip ospf ttl-security` が構成されている場合：
+   * 受信 TTL が `254` 以上（`hops 1` の場合）であれば許可し、OSPF プロセスへ渡す。
+   * 受信 TTL が `254` 未満であれば、遠隔からの偽装パケットと判断し、GTSM ドロップカウンタをインクリメントしてパケットを破棄する。
+
+---
+
+## 🎯 試験対策（CCIE EIラボ試験）
+
+CCIE EI Practical Lab 試験において、OSPF Operations は単なる基礎知識ではなく、**「無瞬断メンテナンス手順の指定」** や **「インフラ保護（Control Plane Security）要件」** として高配点で出題されます [21, 1.4.e, 4.1.a]。
+
+### 1. 試験で狙われる重点ポイント
+* **Graceful Shutdown の指定構文:**
+  * プロセス全体の停止: `router ospf 1` ➔ `shutdown`
+  * 特定インターフェイスのみの停止: `interface Gi0/1` ➔ `ip ospf shutdown` または `ospfv3 shutdown`
+  * **注意:** インターフェイスの `shutdown`（物理ダウン）ではなく、OSPF 制御のみを停止させる要件が出題されます。
+* **GTSM (TTL-Security) の構成と Hop-Count チューニング:**
+  * 通常の直結リンク: `ip ospf ttl-security`（デフォルト: `hops 1` ➔ TTL 254 以上要求）
+  * Virtual-Link または Multi-hop 環境: `ip ospf ttl-security hops <1-254>`（要求最小 TTL = `256 - hops`）
+  * **落とし穴:** 片側のルータのみに `ttl-security` を設定すると、対向ルータは通常の TTL=1 で送信するため、GTSM チェックに引っかかって OSPF ネイバーが即座に DOWN します [21, 1.4.e]。
+
+### 2. コンフィグ読解・show コマンドでの状態判定
+* **`show ip ospf` の出力監査:**
+  ```text
+  R1# show ip ospf
+   Routing Process "ospf 1" with ID 1.1.1.1
+   It is admin shut down   <-- Graceful Shutdown が有効であることを示す
+  ```
+* **`show ip ospf interface <int>` の出力監査:**
+  ```text
+  R1# show ip ospf interface GigabitEthernet0/1
+   GigabitEthernet0/1 is up, line protocol is up
+    Strict TTL security is enabled, hop count 1   <-- GTSM が有効であることを示す
+  ```
+* **GTSM ドロップ統計の確認:**
+  ```text
+  R1# show ip ospf statistics ttl-security
+   GigabitEthernet0/1:
+    TTL Security drops: 142  <-- 不整合パケットがドロップされた回数
+  ```
+
+---
+
+## 🛠 設定方法
+
+### 1. Graceful Shutdown 設定（プロセス単位 & インターフェイス単位）
+
+```bash
+# プロセス全体の Graceful Shutdown
+router ospf 1
+ shutdown
+!
+# 特定インターフェイスのみの Graceful Shutdown (OSPFv2)
+interface GigabitEthernet0/1
+ ip ospf shutdown
+!
+# OSPFv3 インターフェイスの Graceful Shutdown
+interface GigabitEthernet0/2
+ ospfv3 shutdown
+```
+
+### 2. GTSM (Generic TTL Security Mechanism) 設定 (OSPFv2 / OSPFv3)
+
+```bash
+# インターフェイス個別設定 (OSPFv2)
+interface GigabitEthernet0/1
+ ip ospf ttl-security
+!
+# プロセス配下の全インターフェイス一括設定 (OSPFv2)
+router ospf 1
+ ttl-security all-interfaces
+!
+# Virtual-Link における Multi-hop GTSM 設定
+router ospf 1
+ area 1 virtual-link 3.3.3.3 ttl-security hops 3
+!
+# OSPFv3 における GTSM 設定
+interface GigabitEthernet0/1
+ ospfv3 ttl-security
+```
+
+---
+
+## 🔍 検証コマンド
 
 | 目的 | コマンド |
 | :--- | :--- |
-| **OSPFv2 プロセス・シャットダウン** | <code>(config-router)# shutdown</code> |
-| **OSPFv2 インターフェイス・シャットダウン** | <code>(config-if)# ip ospf shutdown</code> |
-| **GTSM の全インターフェイス有効化** | <code>(config-router)# ttl-security all-interfaces [hops H]</code> |
-| **OSPFv3 (IPv6) プロセス停止** | <code>(config-router)# shutdown</code> |
-| **Router-ID の手動固定** | <code>(config-router)# router-id [A.B.C.D]</code> |
-| **パッシブ・インターフェイスのデフォルト化** | <code>(config-router)# passive-interface default</code> |
-
-### 検証・デバッグコマンド
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **OSPFプロセスの稼働状態確認** | <code>show ip ospf</code> |
-| **GTSM/TTL セキュリティのステータス確認** | <code>show ip ospf interface [ID]</code> |
-| **ネイバーの状態遷移のデバッグ** | <code>debug ip ospf adj</code> |
-| **LSAのフラッシュ・生成イベント確認** | <code>debug ip ospf lsa-generation</code> |
-| **OSPFv3 ネイバーの確認** | <code>show ospfv3 neighbor</code> |
-| **パケット統計（ドロップされたTTLの確認等）** | <code>show ip ospf statistics</code> |
+| **OSPF プロセス全体の運用途中状態（Shutdown 状態含む）の確認** | <code>show ip ospf</code> |
+| **特定インターフェイスの GTSM 有効化状態および Hop Count の確認** | <code>show ip ospf interface GigabitEthernet0/1</code> |
+| **GTSM (TTL Security) によるパケットドロップ統計数の確認** | <code>show ip ospf statistics ttl-security</code> |
+| **OSPFv3 インターフェイスの Operations 状態確認** | <code>show ospfv3 interface</code> |
+| **OSPF パケット受信時の TTL エラーデバッグ** | <code>debug ip ospf adj</code> / <code>debug ip ospf packets</code> |
 
 ---
 
-## 🛠 ラボ学習・設定サンプル例
+## 🚨 トラブルシュート
 
-実戦的な12の実装シナリオです。
+| 症状 | 原因 | 確認コマンド | 対処方法 |
+| :--- | :--- | :--- | :--- |
+| **GTSM 設定後、OSPF ネイバーが即座に DOWN して再確立しない。** | 片側のルータのみに GTSM（`ttl-security`）が設定され、対向ルータが TTL=1 でパケットを送信している。 | `show ip ospf statistics ttl-security`<br>`show logging` | 対向ルータでも `ip ospf ttl-security` を設定するか、対向の TTL 送信値を 255 へ調整する [21, 1.4.e]。 |
+| **Virtual-Link 上で GTSM を設定したところアジャセンシーが切断された。** | 経由するエリアのホスト数（Hop Count）に対して `hops` 数が不足している（例: 2 ホスト離れているのに `hops 1` を指定）。 | `show ip ospf virtual-links` | `area <id> virtual-link <RID> ttl-security hops <count>` の hop 数を経路上の実ホスト数以上に拡大する [21, 1.4.e]。 |
+| **`shutdown` を解除してもネイバーが復旧しない。** | インターフェイスレベル（`ip ospf shutdown`）とプロセスレベル（`router ospf` ➔ `shutdown`）の双方で設定が残っている。 | `show running-config \| section ospf` | `no ip ospf shutdown` および `no shutdown` を両モードから削除する [21, 1.4.e]。 |
 
-### 1. 基本的な OSPFv2 の初期化と Router-ID 固定
+---
 
-**【問題内容】**
-AS 100 相当の OSPF 1 を起動し、Router-ID を 1.1.1.1 に固定せよ。すべてのインターフェイスを対象エリア 0 に含めよ。
+## ⚠ 制限事項
 
-**【設定例】**
-```ios
+1. **GTSM 非対応機器との相互運用不可:**
+   GTSM は受信パケットの TTL が 254 以上であることを厳格に求めるため、パケット送信時に TTL=255 をセットできない古く非対応なサードパーティ機器とはアジャセンシーを形成できません [21, 1.4.e]。
+2. **OSPF Shutdown 時の LSA 保持:**
+   `shutdown` コマンド実行時、自ルータ発の LSA は Age=3600 でフラッシュされますが、プロセスが再起動するまでの間、対向側で古い LSA が一瞬残存しないよう明示的な Ack 交換が完了するまで待機が発生します [21, 1.4.e]。
+
+---
+
+## 🔄 他技術との関連
+
+* **Control Plane Policing (CoPP):**
+  GTSM は CoPP よりも手前のハードウェア/ASIC レベルで不整合パケット（TTL < 254）を即座に破棄するため、CoPP の CPU 負荷軽減に大きく貢献します [21, 1.4.e, 4.1.a]。
+* **BGP TTL Security / BGP GTSM:**
+  BGP における `neighbor <IP> ttl-security hops 1` と全く同じ原理（RFC 5082）であり、コントロールプレーンセキュリティの統一設計手順として問われます [21, 1.5.a, 4.1.a]。
+
+---
+
+## 🧩 比較表
+
+### OSPF Graceful Shutdown vs Max-Metric Router LSA (Stub Router)
+
+| 比較項目 | Graceful Shutdown (`shutdown`) | Max-Metric Router LSA (`max-metric router-lsa`) |
+| :--- | :--- | :--- |
+| **主目的** | プロセス/ポートの完全停止（メンテナンス撤去） [21, 1.4.e] | 経路の迂回（過渡期の Transit トラフィック遮断） [21, 1.4.f (iii)] |
+| **LSA 処理** | 自身の全 LSA を Age=3600 (MaxAge) でフラッシュ [21, 1.4.e] | Type-1 LSA のリンクコストを `65535` に引上げて広報 [21, 1.4.f (iii)] |
+| **OSPF ネイバー** | 完全に DOWN 状態へ移行 | UP 状態（アジャセンシー）を維持したまま迂回 [21, 1.4.f (iii)] |
+| **直結トラフィック** | 自機宛て通信も停止 | 自機宛て・自機始点の通信は正常継続 [21, 1.4.f (iii)] |
+
+---
+
+## 💡 ベストプラクティス
+
+1. **計画停止時の Defensive 2 段階手順:**
+   メンテナンス開始時は、まず `max-metric router-lsa on-startup 300` や `max-metric router-lsa` を投入してトラフィックを優雅に迂回させた後、`ip ospf shutdown` を実行して完全停止させる [21, 1.4.e, 1.4.f (iii)]。
+2. **全コントロールプレーンポートへの GTSM 標準適用:**
+   直結ルータ間のすべての OSPF インターフェイスにおいて `ip ospf ttl-security` を標準構成として投入し、外部からの DoS/スプーフィング攻撃を未然に防ぐ [21, 1.4.e, 4.1.a]。
+
+---
+
+## 📝 ラボ学習・設定サンプル例
+
+以下は、CCIE EI ラボ試験レベルに対応する 10 個の演習シナリオです。
+
+### Scenario 1: OSPFv2 プロセスレベル Graceful Shutdown
+* **要件:** R1 の OSPF プロセス 1 を停止し、対向ルータに LSA を即座にフラッシュさせて無瞬断で別経路へ迂回させよ [21, 1.4.e]。
+
+**【R1】**
+```bash
 router ospf 1
- router-id 1.1.1.1
- network 0.0.0.0 255.255.255.255 area 0
-```
-
----
-
-### 2. OSPFv3 における Router-ID の強制設定 (IPv6 Only)
-
-**【問題内容】**
-IPv4 アドレスが設定されていないルータにおいて OSPFv3 を起動せよ。Router-ID を設定しない場合にプロセスが起動しないことを確認し、修正せよ。
-
-**【設定例】**
-```ios
-! 修正前：OSPFv3は起動に失敗する
-router ospfv3 1
- ! 修正：32ビットの識別子を手動で与える
- router-id 0.0.0.2
- address-family ipv6 unicast
-```
-
----
-
-### 3. パッシブインターフェイスの効率的な一括設定
-
-**【問題内容】**
-ルータのすべてのインターフェイスをパッシブにし、ネイバー関係の形成を `GigabitEthernet0/1` のみで許可せよ。
-
-**【設定例】**
-```ios
-router ospf 1
- passive-interface default
- no passive-interface GigabitEthernet0/1
-```
-
----
-
-### 4. プロセスレベルでの Graceful Shutdown
-
-**【問題内容】**
-OSPF プロセス全体を一時停止し、ネイバーに対してメトリックの最大値を広告させてからセッションを解除せよ。
-
-**【設定例】**
-```ios
-router ospf 1
- ! プロセスを削除せずに論理的に停止させる
  shutdown
 ```
 
+**【検証方法】**
+```bash
+R1# show ip ospf
+# "It is admin shut down" が出力に含まれることを確認
+```
+
 ---
 
-### 5. 特定インターフェイスのみの Graceful Shutdown
+### Scenario 2: 特定インターフェイス単位 OSPF Shutdown
+* **要件:** R1 の Gi0/1 インターフェイスでのみ OSPF 動作を停止させよ [21, 1.4.e]。
 
-**【問題内容】**
-`GigabitEthernet0/2` 経由の OSPF ネイバーのみを、対向ルータにコンバージェンスを促しながら停止させよ。
-
-**【設定例】**
-```ios
-interface GigabitEthernet0/2
- ! このインターフェイスのみOSPFの動作を停止し、通知を送る
+**【R1】**
+```bash
+interface GigabitEthernet0/1
  ip ospf shutdown
 ```
 
+**【検証方法】**
+```bash
+R1# show ip ospf interface GigabitEthernet0/1
+# "OSPF is admin shutdown" を確認
+```
+
 ---
 
-### 6. GTSM によるネイバー保護 (全インターフェイス)
+### Scenario 3: 直結 1 Hop GTSM (TTL Security) 構成 (OSPFv2)
+* **要件:** R1-R2 間の Gi0/1 において、GTSM（Hop Count 1）を構成せよ [21, 1.4.e (iii)]。
 
-**【問題内容】**
-コントロールプレーンの保護のため、すべての直接接続された OSPF ネイバーに対し TTL 255 のチェックを有効化せよ。
+**【R1 / R2 共通】**
+```bash
+interface GigabitEthernet0/1
+ ip ospf ttl-security
+```
 
-**【設定例】**
-```ios
+**【検証方法】**
+```bash
+R1# show ip ospf interface GigabitEthernet0/1
+# "Strict TTL security is enabled, hop count 1" を確認
+```
+
+---
+
+### Scenario 4: OSPF プロセス配下での全インターフェイス GTSM 一括有効化
+* **要件:** OSPF プロセス 1 配下のすべての活性インターフェイスで GTSM を一括バインドせよ [21, 1.4.e (iii)]。
+
+**【R1】**
+```bash
 router ospf 1
- ! 全インターフェイスでGTSMを有効化
  ttl-security all-interfaces
 ```
 
----
-
-### 7. インターフェイス個別での GTSM カスタマイズ
-
-**【問題内容】**
-グローバルで GTSM を有効にしているが、`GigabitEthernet0/3` だけは特定の理由で最大 2ホップ先までのネイバーを許容せよ。
-
-**【設定例】**
-```ios
-interface GigabitEthernet0/3
- ! ホップ数を2に緩和してGTSMを適用
- ip ospf ttl-security hops 2
+**【検証方法】**
+```bash
+R1# show ip ospf interface GigabitEthernet0/1
 ```
 
 ---
 
-### 8. LSA Throttling による運用の安定化
+### Scenario 5: OSPF Virtual-Link における Multi-Hop GTSM 構成
+* **要件:** Area 1 を経由する Router ID 3.3.3.3 との Virtual-Link 上で、最大 3 ホスト離れを考慮した GTSM を構成せよ [21, 1.4.e (iii)]。
 
-**【問題内容】**
-ネットワークが不安定な環境において、LSA の生成が頻発するのを防ぐため、最小間隔を 5000ms に制限せよ。
-
-**【設定例】**
-```ios
+**【R1】**
+```bash
 router ospf 1
- ! 初回生成 0ms, 次回 5000ms, 最大 5000ms
- timers throttle lsa 0 5000 5000
+ area 1 virtual-link 3.3.3.3 ttl-security hops 3
+```
+
+**【検証方法】**
+```bash
+R1# show ip ospf virtual-links
+# "Strict TTL security is enabled, hop count 3" を確認
 ```
 
 ---
 
-### 9. OSPFv3 Address Family での Graceful Shutdown
+### Scenario 6: OSPFv3 における GTSM (TTL Security) 構成
+* **要件:** OSPFv3 プロセスにおいて、Gi0/1 上で GTSM を有効化せよ [21, 1.4.b, 1.4.e]。
 
-**【問題内容】**
-OSPFv3 マルチアドレスファミリー環境において、IPv6 ユニキャストアドレスファミリーのみを停止せよ。
-
-**【設定例】**
-```ios
-router ospfv3 1
- address-family ipv6 unicast
-  ! IPv6ルーティングのみを停止
-  shutdown
-```
-
----
-
-### 10. Router-ID 競合のトラブルシューティング (Verification)
-
-**【問題内容】**
-R1 と R2 で Router-ID が重複している。イベントログを確認し、R2 側の ID を変更せよ。
-
-**【検証と設定】**
-```ios
-R2# show ip ospf
-! "Routing Process "ospf 1" with ID 1.1.1.1" を確認。対向R1と同じ。
-!
-R2(config)# router ospf 1
-R2(config-router)# router-id 2.2.2.2
-! プロセス再起動が必要な場合がある
-R2# clear ip ospf process
-```
-
----
-
-### 11. OSPF インターフェイスコストの手動変更 (Ops TE)
-
-**【問題内容】**
-運用の過程で、特定のパスへのトラフィック流入を抑えるため、コストを 10000 に変更せよ。
-
-**【設定例】**
-```ios
+**【R1 / R2 共通】**
+```bash
 interface GigabitEthernet0/1
- ip ospf cost 10000
+ ospfv3 ttl-security
+```
+
+**【検証方法】**
+```bash
+R1# show ospfv3 interface GigabitEthernet0/1
 ```
 
 ---
 
-### 12. GTSM (TTL Security) のパケットドロップ確認
+### Scenario 7: Max-Metric Router LSA による安全なメンテナンストラフィック迂回
+* **要件:** 撤去前に自ルータ経由の Transit トラフィックを迂回させるため、Type-1 LSA コストを Max (65535) に引き上げよ [21, 1.4.f (iii)]。
 
-**【問題内容】**
-GTSM を有効にした後、TTL 不一致でドロップされたパケット数を確認せよ。
+**【R1】**
+```bash
+router ospf 1
+ max-metric router-lsa
+```
+
+**【検証方法】**
+```bash
+R1# show ip ospf database router self-originate
+# 全リンクコストが 65535 になっていることを確認
+```
+
+---
+
+### Scenario 8: GTSM パケットドロップ動作の検証とカウンター確認
+* **要件:** 不整合パケットが GTSM によって正しくドロップされたか統計を確認せよ [21, 1.4.e (iii)]。
 
 **【検証コマンド】**
-```ios
-R1# show ip ospf statistics
-! "TTL security failures" の項目を確認
+```bash
+R1# show ip ospf statistics ttl-security
 ```
 
 ---
+
+### Scenario 9: VRF-Aware OSPF インターフェイスでの Graceful Shutdown
+* **要件:** VRF `RED` にバインドされた Gi0/2 ポートの OSPF セッションのみを安全に停止させよ [21, 1.2.e, 1.4.e]。
+
+**【R1】**
+```bash
+interface GigabitEthernet0/2
+ ip ospf shutdown
+```
+
+**【検証方法】**
+```bash
+R1# show ip ospf vrf RED interface GigabitEthernet0/2
+```
+
+---
+
+### Scenario 10: OSPF Shutdown 解除と復旧検証
+* **要件:** メンテナンス完了に伴い、R1 の Gi0/1 で設定されていた OSPF Shutdown を解除して正常復旧させよ [21, 1.4.e]。
+
+**【R1】**
+```bash
+interface GigabitEthernet0/1
+ no ip ospf shutdown
+```
+
+**【検証方法】**
+```bash
+R1# show ip ospf neighbor GigabitEthernet0/1
+# ネイバーが FULL ステートへ復旧したことを確認
+```
+
+---
+
+## ❓ 想定試験問題
+
+### 1. 【トラブルシューティング】GTSM 設定時のネイバー切断障害
+**問題:** 
+R1 と R2 が直結されています。R1 の Gi0/1 で `ip ospf ttl-security` を設定した直後、R2 との OSPF ネイバーが INIT/DOWN 状態に落ちて再確立しなくなりました。R2 側の設定は変更していません。この原因と修復コンフィグを述べてください [21, 1.4.e (iii)]。
+
+**解答・解説:**
+* **原因:** 
+  R1 側で GTSM を有効化すると、受信 OSPF パケットの IP TTL が 254 以上（`255 - 1 + 1`）であることを要求します。しかし対向 R2 は GTSM が未設定であるため、通常の OSPF パケットとして TTL=1 で送信します。R1 はこれを受けて「1 ホスト以上離れた場所からの不正パケット」と判断し、物理層で即座にドロップしたためネイバーが切断されました [21, 1.4.e (iii)]。
+* **修復コンフィグ:**
+  R2 の該当インターフェイスでも GTSM を有効化します。
+  ```bash
+  R2(config)# interface GigabitEthernet0/1
+  R2(config-if)# ip ospf ttl-security
+  ```
+
+---
+
+### 2. 【コンフィグ読解 / 設計】Graceful Shutdown と Stub Router 機能の使い分け
+**問題:** 
+以下の 2 つの要件を満たすために、それぞれ投入すべき最適な OSPF コマンドを回答してください。
+1. ルータ R1 を完全に再起動するため、アジャセンシーを速やかに切断し、対向ルータに即座に LSA をフラッシュさせたい [21, 1.4.e]。
+2. ルータ R1 の自機宛て通信（Web サーバ接続）は維持したまま、他ルータ間のパケット転送（Transit）から自機を外したい [21, 1.4.f (iii)]。
+
+**解答・解説:**
+* **要件 1 の解答:** `router ospf 1` 配下で `shutdown` を実行する（または該当ポートで `ip ospf shutdown`） [21, 1.4.e]。
+* **要件 2 の解答:** `router ospf 1` 配下で `max-metric router-lsa` を実行する [21, 1.4.f (iii)]。
+
+---
+
+## 🔗 参考リソース
+
+* [Cisco Systems: OSPF Configuration Guide, Cisco IOS XE Release 17.x](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_ospf/configuration/17-x/iro-17-x-book.html)
+* [Cisco Command Reference: ip ospf ttl-security](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_ospf/command/iro-cr-book.html)
+* [Cisco Live: BRKRST-2337 - Advanced OSPF Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html)
+
+---
+
+## 📝 補足（Notes）
+
+* **GTSM TTL 計算フォーミュラ:**
+  $$	ext{Required Minimum TTL} = 256 - 	ext{Hop Count}$$
+  （例: `hops 1` ➔ $256 - 1 = 255$。ただし 1 Hop の過渡期考慮により実効要求値は **254** 以上）
+
 
 ## 参考リソースリンク
 
