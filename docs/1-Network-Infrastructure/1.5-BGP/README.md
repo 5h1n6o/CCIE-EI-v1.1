@@ -522,10 +522,18 @@ BGP パス属性における **Weight** と **Local Preference** の決定的な
 
 ## 🔗 参考リソース
 
+### Configurationガイド
 * [Cisco Systems: BGP Configuration Guide, Cisco IOS XE Release 17.x](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/configuration/17-x/iproute-bgp-17-x-book.html)
 * [Cisco Command Reference: BGP Commands](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/command/irg-cr-book.html)
 * [Cisco Technical Notes: BGP Best Path Selection Algorithm](https://www.cisco.com/c/en/us/support/docs/ip/border-gateway-protocol-bgp/13753-25.html)
 * [Cisco Live: BRKRST-3321 - Advanced BGP Architecture and Troubleshooting](https://www.ciscolive.com/global/on-demand-library.html)
+
+### CiscoLive (動画・スライド)
+* [**Border Gateway Protocol Fundamentals - BRKENT-1179**](https://www.ciscolive.com/c/dam/r/ciscolive/apjc/docs/2025/pdf/BRKENT-1179.pdf)
+* [**Advanced Border Gateway Protocol - BRKENT-3219**](https://www.ciscolive.com/c/dam/r/ciscolive/global-event/docs/2026/pdf/BRKENT-3219.pdf)
+* [**BGP for the CCIE Candidates - BRKCCIE-3000**](https://www.ciscolive.com/c/dam/r/ciscolive/us/docs/2018/pdf/BRKCCIE-3000.pdf)
+* [**Scaling BGP - BRKRST-3321**](https://www.ciscolive.com/on-demand/on-demand-library.html?search=BRKRST-3321#/session/1640198814196001LBIO)
+
 
 ---
 
