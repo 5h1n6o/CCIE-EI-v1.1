@@ -6,301 +6,541 @@ grand_parent: 1-Network-Infrastructure
 nav_order: 6
 ---
 
-# 1.5.f Other BGP Features
+# 1.5.f Other BGP features such as soft reconfiguration and route refresh
 
-CCIE Enterprise Infrastructure (EI) v1.1 の Blueprint 項目 「1.5 BGP」における「1.5.f Other BGP features such as soft reconfiguration and route refresh」について、CCIE レベルの技術詳細、セッションの無瞬断運用、およびスケーラビリティに寄与する高度な機能を整理しました。
+本ページでは、CCIE Enterprise Infrastructure (EI) v1.1 Practical Lab 試験および筆記試験における BGP の運用・保守・高速コンバージエンスおよび制御プレーン最適化機能である **`1.5.f Other BGP features such as soft reconfiguration and route refresh`** について、Cisco IOS-XE 17.x の実装基準に 100% 準拠して学術的・実践的背景から詳細に解説します。
 
 ---
 
 ## 📘 概要
 
-BGP (Border Gateway Protocol) は、一度 Established 状態になったネイバー間で大量のルーティング情報を交換しますが、その後にインバウンドまたはアウトバウンドのポリシー（ルートマップやフィルタ）を変更しても、デフォルトでは既存の BGP テーブルに即座に反映されません。従来、これらの変更を反映させるには BGP セッションを一度切断し、TCP コネクションを再確立する「ハードリセット」が必要でした。しかし、大規模なエンタープライズネットワークやインターネット境界においてセッションを切断することは、重大なパケットロスやコンバージェンスの嵐（フラッピング）を招く原因となります。
+BGP（Border Gateway Protocol）はインタードメイン・ルーティングの標準プロトコルであり、数百万規模のルーティングテーブルを処理する能力を持ちます。しかし、ポリシー変更時における BGP セッションのリセット（フラッピング）は、コントロールプレーン負荷の急増やデータプレーンにおける大量のパケットドロップを引き起こします。
 
-**Soft Reconfiguration** および **Route Refresh** は、BGP ピアリングを切断することなく、変更されたポリシーを適用するためのメカニズムです。また、Blueprint で言及されている「Other features」には、ルータのリソース保護に不可欠な **Maximum Prefix** や、障害検知を高速化する **Fast External Fallover**、そしてコントロールプレーンを保護する **BGP TTL Security** など、CCIE EI ラボ試験で実戦的な実装が問われる多くの運用管理機能が含まれています。
+本項目で扱う **Route Refresh**、**Soft Reconfiguration Inbound**、**BGP Fast Fall-over (Fast Session Deactivation)**、**BGP Next-Hop Address Tracking (NAT)**、**BGP Additional Paths (Add-Paths)**、**BGP PIC (Prefix Independent Convergence)**、**Graceful Restart (GR) / NSR (Non-Stop Routing)**、および **BGP Slow Peer Detection** などの高度な運用制御機能は、BGP ピアセッションを切断・再確立することなく動的にポリシー変更を反映させ、障害発生時の切替時間をミリ秒単位に短縮するための核心技術群です。
+
+### 主な利用目的と適用シーン
+1. **無停止（Hitless）ポリシー再適用:** 受信側フィルタ（Prefix-List, Route-Map）の変更後、TCP セッション（ポート 179）をリセットせずに動的に BGP UPDATE を再要求・再計算する（Route Refresh / Soft Reconfiguration）。
+2. **事前ポリシー（Pre-policy）ルートの監査:** 対向 ISP やピアから送信された未加工の BGP 経路（Filter 適用前の全プレフィックス）をメモリ上に保存し、トラブルシューティングやフィルタリング漏れの監査を行う（Soft Reconfiguration Inbound）。
+3. **ミリ秒単位の障害検出と高速コンバージエンス:** 物理リンク閉塞や IGP（OSPF/EIGRP）の Next-Hop 消失を即座に検知し、BGP Holdtime（180秒）の満了を待たずに即時パスをバックアップへ切り替える（Fast Fall-over / Next-Hop Tracking / BGP PIC）。
+4. **iBGP 内でのマルチパス透過と非最適パス解消:** RR（Route Reflector）環境下で隠蔽されがちなセカンドベストパスを伝搬させ、iBGP のロードバランシングや Fast Reroute を実現する（Additional Paths）。
 
 ---
 
 ## 🔑 要点
 
-### 1. Soft Reconfiguration Inbound (i)
-
-ポリシーの変更を反映させるための伝統的な手法です。
-
-*   **動作原理:** <code>neighbor [IP] soft-reconfiguration inbound</code> コマンドを有効にすると、ルータはネイバーから受信したすべての Update パケットを、フィルタリング（インバウンドポリシー）を適用する前の「生のデータ」としてメモリ（Adj-RIB-In）に保持します。
-*   **メリット:** ネイバーに対して再度情報を送るよう要求することなく、自身のメモリ内のキャッシュに対して新しいポリシーを適用し直すことができます。
-*   **デメリット:** すべてのルートを二重（適用後と適用前）に保持するため、ルータのメモリ（RAM）を大幅に消費します。
-
-### 2. Route Refresh Capability (RFC 2918) (ii)
-
-現代の BGP 実装における標準的なポリシー反映手法です。
-
-*   **動作原理:** BGP セッション確立時の Capability Negotiation で「Route Refresh」が互いにサポートされていることを確認します。
-*   **トリガー:** <code>clear ip bgp [IP] soft in</code> を実行すると、ルータはネイバーに対して「BGP Update を再送してください」という特別なメッセージ（Route Refresh メッセージ）を送信します。
-*   **メリット:** メモリに不要なキャッシュを保持する必要がなく、スケーラビリティに優れています。
-
-### 3. BGP Synchronization (iii)
-
-歴史的な BGP のループ防止ルールであり、現在のラボ試験では主に「無効化」が前提となりますが、概念の理解は必須です。
-
-*   **ルール:** BGP で学習したルートを他のピアに広報する前に、そのルートが IGP (OSPF/EIGRP) でも学習されていることを確認する必要があります。
-*   **現代の実装:** iBGP フルメッシュやルートリフレクタが一般的になったため、デフォルトで <code>no synchronization</code> となっています。
-
-### 4. BGP Maximum Prefix (iv)
-
-ネイバーから学習するルート数に上限を設け、予期せぬフルルートの流入などからルータのメモリを保護します。
-
-*   **オプション:** 上限に達した際に警告のみを出す（warning-only）、またはセッションを切断し、一定時間後に再開させる（restart）などの制御が可能です。
-
-### 5. BGP Fast External Fallover (v)
-
-直接接続された eBGP ネイバーとの物理リンクがダウンした際、ホールドタイムの満了を待たずに即座にセッションを終了させ、コンバージェンスを高速化します。
-
----
-
-## 🎯 試験対策 (CCIE EIレベル)
-
-CCIE ラボ試験では、運用継続性を維持しながら構成を変更するシナリオが頻出します。
-
-### 1. セッション切断の禁止
-
-「既存のトラフィックに影響を与えずに、新しく作成したインバウンドフィルタを R1 に適用せよ」といった制約が課されることがあります。
-*   **対策:** <code>clear ip bgp *</code> は絶対に使用してはいけません。<code>clear ip bgp * soft in</code> または <code>clear ip bgp * soft out</code> を使い分け、ピアリングの状態を Established のまま維持するスキルが求められます。
-
-### 2. Adj-RIB-In の検証
-
-「ネイバーから実際にどのようなルートがフィルタリングされずに届いているかを確認せよ」というタスク。
-*   **対策:** <code>soft-reconfiguration inbound</code> を有効にした上で、<code>show ip bgp neighbors [IP] received-routes</code> を使用します。通常の <code>show ip bgp neighbors [IP] routes</code> との違い（前者はフィルタ適用前、後者は適用後）を明確に理解しておく必要があります。
-
-### 3. Maximum Prefix による防御的実装
-
-「AS 65001 のピアから 100 以上のルートが届いた場合、セッションを遮断し、管理者が介入するまで復旧させないようにせよ」といった要件。
-*   **対策:** <code>neighbor [IP] maximum-prefix 100</code> の設定に加え、<code>restart</code> オプションを付けない（＝手動での clear が必要になる）挙動を正確に把握する必要があります。
-
-### 4. BGP TTL Security (GTSM)
-
-eBGP ネイバー間のスプーフィング攻撃を防止するための設定です。
-*   **対策:** <code>neighbor [IP] ttl-security hops [N]</code> を設定します。これは IP パケットの TTL を 255 で送信し、受信側で 255-N 以上の TTL であることを確認する仕組みです。
-
----
-
-## 🛠 設定・検証コマンド
-
-### ポリシー反映・リフレッシュ
-
-| 目的 | コマンド |
+| 項目 | 内容 |
 | :--- | :--- |
-| **ソフト再構成の有効化(メモリ消費)** | <code>neighbor [IP] soft-reconfiguration inbound</code> |
-| **インバウンドのソフトリセット(Route Refresh)** | <code>clear ip bgp [IP&#124;*] soft in</code> |
-| **アウトバウンドのソフトリセット** | <code>clear ip bgp [IP&#124;*] soft out</code> |
-| **BGPセッションのハードリセット(切断)** | <code>clear ip bgp [IP&#124;*]</code> |
-
-### 運用・リソース保護
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **受信プレフィックス数の制限** | <code>neighbor [IP] maximum-prefix [COUNT] [threshold] [warning-only]</code> |
-| **制限超過後の再起動タイマー** | <code>neighbor [IP] maximum-prefix [COUNT] restart [MINUTES]</code> |
-| **Fast External Falloverの無効化** | <code>(config-router)# no bgp fast-external-fallover</code> |
-| **TTL Security (GTSM)の有効化** | <code>neighbor [IP] ttl-security hops [HOP_COUNT]</code> |
-| **BGPテーブルのスキャン時間調整** | <code>(config-router)# bgp scan-time [SECONDS]</code> |
-
-### 検証・トラブルシューティング
-
-| 目的 | コマンド |
-| :--- | :--- |
-| **Route Refresh機能のサポート確認** | <code>show ip bgp neighbors [IP] &#124; include Route refresh</code> |
-| **フィルタ適用「前」の受信ルート表示** | <code>show ip bgp neighbors [IP] received-routes</code> |
-| **フィルタ適用「後」の受信ルート表示** | <code>show ip bgp neighbors [IP] routes</code> |
-| **広報中のルート表示** | <code>show ip bgp neighbors [IP] advertised-routes</code> |
-| **BGPピアの概要とMsgRcvd/Sent確認** | <code>show ip bgp summary</code> |
-| **Maximum Prefixのステータス確認** | <code>show ip bgp neighbors [IP] &#124; include prefix</code> |
+| **特徴** | セッション切断なしでの動的ポリシー反映（Route Refresh）、未加工ルートのメモリ保持（Soft Reconfiguration）、Next-Hop イベント駆動型動的計算（NAT）、FIB レベルの即時切り替え（BGP PIC）。 |
+| **用途** | エンタープライズ WAN、マルチホーム接続、ISP ピアリング、DMVPN / SD-WAN アンダーレイ、MPLS L3VPN コア網。 |
+| **メリット** | ① セッションリセットに伴うトラフィック破棄の防止。<br>② コントロールプレーンおよびデータプレーンの高速コンバージエンス（ミリ秒単位）。<br>③ 受信ルートの詳細な可視化と監査性向上。<br>④ コントロールプレーン切替（SSO）時のフォワーディング維持。 |
+| **デメリット** | ① `soft-reconfiguration inbound` は未加工ルートをすべて RAM に保持するためメモリ消費量が激増。<br>② Add-Paths や Slow Peer 制御はルータの CPU / メモリ使用率を増加させる。 |
+| **成立要件 / 互換性** | ① Route Refresh は BGP OPEN パケット内の Capability 1 (RFC 2918) 送受信により自動有効化。<br>② Soft Reconfiguration Inbound は明示的コンフィグが必要。 |
+| **設計上の注意点** | モダンな Cisco IOS-XE デバイス間ではデフォルトで Route Refresh が動作するため、`soft-reconfiguration inbound` は例外的なデバッグ目的以外では原則使用しない（メモリ枯渇防止）。 |
 
 ---
 
-## 🛠 ラボ学習・設定サンプル例
+## 🏗 動作原理
 
-CCIE ラボ試験の難易度と制約条件を想定した、BGP の高度な運用機能に関する 12 個の実装例です。
+### 1. Route Refresh vs Soft Reconfiguration Inbound のアーキテクチャ比較
 
-### 1. Route Refresh を利用した無瞬断ポリシー変更
+```text
+========================================================================================
+[ Route Refresh 動作フロー (RFC 2918) ] - メモリ消費ゼロ / 動的再要求
+========================================================================================
+[ Local Router (R1) ]                               [ Remote Peer (R2) ]
+        │                                                     │
+        │─── 1. Policy Modified (Prefix-List/Route-Map) ───┐  │
+        │    (Requires Inbound Soft Reset)                 │  │
+        │                                                  │  │
+        │─── 2. ROUTE-REFRESH Packet (Opcode 5) ──────────►│
+        │                                                  │─── 3. Re-read Local BGP Table
+        │                                                  │    and Re-evaluate Outbound Policy
+        │◄── 4. Standard BGP UPDATE Packets ───────────────│
+        │                                                     │
+   [ Filtered & Saved in ]
+   [ Local BGP Table     ]
 
-**【問題内容】**
-R1 でネイバー R2 からのルートを制限する Prefix-list を作成した。セッションを切断することなく、最新のフィルタを適用せよ。
-
-**【設定例】**
-```ios
-! フィルタの作成
-ip prefix-list FILTER_IN permit 10.1.0.0/16 ge 24
-!
-router bgp 100
- neighbor 10.1.12.2 prefix-list FILTER_IN in
-!
-! ソフトリセットの実行（セッションは切断されない）
-R1# clear ip bgp 10.1.12.2 soft in
+========================================================================================
+[ Soft Reconfiguration Inbound 動作フロー ] - 高メモリ消費 / ローカルテーブル再評価
+========================================================================================
+[ Local Router (R1) ]                               [ Remote Peer (R2) ]
+        │                                                     │
+   ┌────┴───────────────────────────┐                         │
+   │ BGP Received Routes Database   │                         │
+   │ (Pre-policy Raw Updates)       │                         │
+   └────┬───────────────────────────┘                         │
+        │                                                     │
+        │─── 1. Policy Modified (Prefix-List/Route-Map)       │
+        │─── 2. Internal Local Re-evaluation ─────────────────┤ (対向通信一切なし)
+        │    (Pass Raw Updates through New Inbound Policy)    │
+        │                                                     │
+   [ Saved in Main BGP Table ]
 ```
 
 ---
 
-### 2. Soft Reconfiguration Inbound による Adj-RIB-In の可視化
+## ⚙ 動作シーケンス
 
-**【問題内容】**
-R1 において、R2 から送信されているがフィルタリングによって拒否されている「生」のルートを確認できるように設定せよ。
+### A. Route Refresh の動作シーケンス
+1. **Capability ネゴシエーション:**  
+   BGP ピアリング確立時、双方は BGP OPEN パケット内で **`Route Refresh Capability (Code 1)`** を広播し、相互サポートを確認します。
+2. **ポリシー変更と再適用コマンド実行:**  
+   管理者または自動化スクリプトがインバウンドフィルタを変更し、`clear ip bgp <IP> soft in` を実行します。
+3. **ROUTE-REFRESH メッセージの送出:**  
+   ローカルルータは、該当ピアに対して BGP Header Type 5（ROUTE-REFRESH）パケットを送信します。
+4. **対向ルータによる UPDATE パケット再送:**  
+   リクエストを受信した対向ピアは、自身の BGP テーブルに保持されているプレフィックスを、対向用のアウトバウンドポリシーで再評価し、通常の BGP UPDATE パケットとして再送します。
+5. **ローカル処理:**  
+   ローカルルータは受信した UPDATE パケットに新しいインバウンドポリシーを適用し、BGP テーブルおよび RIB / FIB を更新します。
 
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.12.2 soft-reconfiguration inbound
-!
-! 検証：フィルタ適用前の全受信ルートを確認
-R1# show ip bgp neighbors 10.1.12.2 received-routes
-```
-
----
-
-### 3. Maximum Prefix によるルート流入制限（警告のみ）
-
-**【問題内容】**
-R1 は、カスタマー AS 65001 からのルートが 50 を超えた場合に Syslog で警告を出力するようにせよ。ただし、セッションは維持すること。
-
-**【設定例】**
-```ios
-router bgp 100
- address-family ipv4 unicast
-  neighbor 10.1.12.2 maximum-prefix 50 warning-only
-```
+### B. Soft Reconfiguration Inbound の動作シーケンス
+1. **事前構成:**  
+   ローカルルータ上で `neighbor <IP> soft-reconfiguration inbound` を設定します。
+2. **Raw Update の永久保存:**  
+   対向から受信したすべての BGP UPDATE パケットは、インバウンドフィルタが適用される **前** の状態で `BGP Received Routes Database` (Adj-RIB-In) に保存されます。
+3. **ポリシー変更とローカル再計算:**  
+   インバウンドポリシー変更後、`clear ip bgp <IP> soft in` を実行すると、対向にパケットを一切送信せず、ローカルメモリ上の Adj-RIB-In データベースを読み出して新しいポリシーを即座に再適用します。
 
 ---
 
-### 4. Maximum Prefix 超過後の自動復旧
+## 🎯 試験対策（CCIE EIラボ試験）
 
-**【問題内容】**
-ネイバーから 100 個以上のプレフィックスを受信した場合、セッションを遮断し、10 分後に自動的に再接続を試みるように設定せよ。
+CCIE EI Practical Lab 試験において、BGP の「Other Features」は単体での設定問題だけでなく、**トラブルシューティング問題** や **高速コンバージエンス（SLA遵守）問題** として頻出します。
 
-**【設定例】**
-```ios
-router bgp 100
- address-family ipv4 unicast
-  neighbor 10.1.12.2 maximum-prefix 100 restart 10
-```
+### 1. 試験で狙われるポイントと解法テクニック
 
----
+* **`show ip bgp neighbors <IP> received-routes` がエラーになる理由:**
+  * **現象:** コマンドを入力すると `Inbound soft reconfiguration not configured on peer <IP>` と表示されて受信ルートが表示されない。
+  * **理由:** これは正常な挙動です。Route Refresh が有効な環境であっても、フィルタ適用前の「未加工受信ルート」を表示するには `neighbor <IP> soft-reconfiguration inbound` が設定されている必要があります。
+  * **試験での指示:** 「対向から受信している全プレフィックス（フィルタで拒否されたものを含む）を確認せよ」と要求された場合、`soft-reconfiguration inbound` を追加設定する必要があります。
 
-### 5. eBGP TTL Security (GTSM) の実装
+* **Fast Session Deactivation (`fall-over route-map`):**
+  * デフォルトの BGP は、物理リンクが UP している限り BGP Holdtime（180秒）が満了するまでセッションを維持しようとします。
+  * マルチホップ eBGP や iBGP において、中間障害で Next-Hop への IP ルートが消失した場合に即座に BGP を Down させたい場合は、以下を構成します：
+    ```bash
+    router bgp 65000
+     neighbor 10.1.12.2 fall-over route-map CHECK_NEXTHOP
+    ```
 
-**【問題内容】**
-R1 と eBGP ピアである R2 (10.1.12.2) 間のセッションを保護せよ。直接接続（1ホップ）のみを許可すること。
+* **BGP Next-Hop Address Tracking (NAT) と Delay チューニング:**
+  * Cisco IOS-XE では、BGP スキャナー（デフォルト 60秒周期）を待つことなく、IGP / RIB の Next-Hop 変化イベントをリアルタイムに追跡します。
+  * デフォルトの応答遅延（Event Delay）は 5 秒です。試験で「IGP Next-Hop 障害発生後、1秒以内に BGP パスを再計算させよ」と指示された場合、以下をチューニングします：
+    ```bash
+    router bgp 65000
+     bgp nexthop trigger delay 1
+    ```
 
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.12.2 ttl-security hops 1
-!
-! 注意：これを設定すると ebgp-multihop は自動的に無効化または共存できません。
-```
-
----
-
-### 6. BGP Suppress Inactive の構成
-
-**【問題内容】**
-RIB (ルーティングテーブル) にインストールされていない BGP ルートを、ネイバーへ広報しないように設定して帯域を節約せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- bgp suppress-inactive
-```
-*   **解説:** これにより、AD 値の関係で他のプロトコル（EIGRP 等）が優先されているルートが BGP で広報されるのを防ぎます。
+* **BGP Additional Paths (Add-Paths) の仕様:**
+  * Route Reflector (RR) 環境でセカンドベストパスが消去される問題を克服し、iBGP での等コスト / 不等コストマルチパスを実現します。
+  * `bgp additional-paths select` / `send` / `receive` の 3 パラメータの正確なバインド位置が問われます。
 
 ---
 
-### 7. Fast External Fallover の無効化
+## 🛠 設定方法
 
-**【問題内容】**
-不安定なワイヤレスリンク上で eBGP を稼働させている。物理インターフェイスのフラッピングによるセッション切断を防ぐため、リンクダウンによる即時切断を無効化せよ。
+### 1. Soft Reconfiguration Inbound の設定
 
-**【設定例】**
-```ios
-router bgp 100
- no bgp fast-external-fallover
-!
-! この場合、セッションの維持はホールドタイムに依存するようになります。
-```
-
----
-
-### 8. Outbound Route Filtering (ORF) の Capability 交渉
-
-**【問題内容】**
-R1 と R2 の間で、受信側（R1）の Prefix-list 情報を送信側（R2）へ自動通知し、送信元でフィルタリングを行わせる機能を有効化せよ。
-
-**【設定例】**
-```ios
-! R1 (受信側)
-router bgp 100
- neighbor 10.1.12.2 capability orf prefix-list both
- neighbor 10.1.12.2 prefix-list MY_PFX_LIST in
-
-! R2 (送信側)
-router bgp 100
- neighbor 10.1.12.1 capability orf prefix-list both
-```
-*   **検証:** `show ip bgp neighbors 10.1.12.1 received prefix-filter` で通知されたリストを確認します。
-
----
-
-### 9. BGP Advertise-Best-External の有効化
-
-**【問題内容】**
-MPLS VPN 環境において、プライマリパスがダウンした際の切り替えを高速化するため、バックアップの eBGP パスを iBGP ピアに広報せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- address-family ipv4 unicast
-  bgp advertise-best-external
-```
-
----
-
-### 10. BGP スキャン時間の最適化
-
-**【問題内容】**
-BGP テーブルと RIB の整合性チェックを 5 秒ごとに行うように変更し、ルートの変化に対する反応を早めよ。
-
-**【設定例】**
-```ios
-router bgp 100
- bgp scan-time 5
-```
-
----
-
-### 11. BGP ネイバーのロギング強化
-
-**【問題内容】**
-ネイバーの状態が Established 以外に変化した際、詳細な原因を含めたログを出力するようにせよ。
-
-**【設定例】**
-```ios
-router bgp 100
+```bash
+router bgp 65001
  bgp log-neighbor-changes
+ neighbor 192.168.12.2 remote-as 65002
+ neighbor 192.168.12.2 soft-reconfiguration inbound
+```
+
+### 2. BGP Fast Fall-over (Route-Map 連動) の設定
+
+```bash
+ip prefix-list PEER_NEXTHOP seq 5 permit 10.1.23.0/24
+!
+route-map MAP_FALLOVER permit 10
+ match ip address prefix-list PEER_NEXTHOP
+!
+router bgp 65001
+ neighbor 10.1.23.2 remote-as 65002
+ neighbor 10.1.23.2 ebgp-multihop 255
+ neighbor 10.1.23.2 fall-over route-map MAP_FALLOVER
+```
+
+### 3. BGP Next-Hop Address Tracking & Trigger Delay の最適化
+
+```bash
+router bgp 65001
+ # Next-Hop 追跡遅延を 1 秒に短縮（デフォルト: 5秒）
+ bgp nexthop trigger delay 1
+```
+
+### 4. BGP Additional Paths (Add-Paths) の構成
+
+```bash
+#【RR 側設定】
+router bgp 65000
+ address-family ipv4 unicast
+  # 送信・受信能力の定義
+  neighbor 10.1.1.2 additional-paths send/receive
+  # 送信するパスの選定ロジック (Best 2 パスを送出)
+  bgp additional-paths select best 2
+ exit-address-family
+
+#【Client 側設定】
+router bgp 65000
+ address-family ipv4 unicast
+  neighbor 10.1.1.1 additional-paths receive
+  maximum-paths ibgp 2
+ exit-address-family
 ```
 
 ---
 
-### 12. ピアリング認証の MD5 キー設定
+## 🔍 検証コマンド
 
-**【問題内容】**
-R1 と R2 の BGP セッションをパスワード「CISCO_CCIE」で認証せよ。
-
-**【設定例】**
-```ios
-router bgp 100
- neighbor 10.1.12.2 password CISCO_CCIE
-```
-*   **検証:** `show ip bgp neighbors` で認証が有効であることを確認します。
+| 目的 | コマンド |
+| :--- | :--- |
+| **ピアの Route Refresh サポート機能の確認** | <code>show ip bgp neighbors <IP> \| include Route refresh</code> |
+| **未加工受信ルート（Adj-RIB-In）の確認（Soft-Reconfig 必須）** | <code>show ip bgp neighbors <IP> received-routes</code> |
+| **インバウンドフィルタ適用後ルート（Loc-RIB）の確認** | <code>show ip bgp neighbors <IP> routes</code> |
+| **アウトバウンドフィルタ適用後送信ルート（Adj-RIB-Out）の確認** | <code>show ip bgp neighbors <IP> advertised-routes</code> |
+| **Next-Hop Address Tracking テーブルの監査** | <code>show ip bgp nexthop</code> |
+| **BGP Additional Paths の交換・保持状況確認** | <code>show ip bgp <PREFIX></code> / <code>show ip bgp neighbor <IP></code> |
+| **動的 Route Refresh リクエスト送信（ソフトリセット）** | <code>clear ip bgp <IP> soft in</code> |
+| **アウトバウンドソフトリセットの実行** | <code>clear ip bgp <IP> soft out</code> |
 
 ---
+
+## 🚨 トラブルシュート
+
+| 症状 | 原因 | 確認コマンド | 対処方法 |
+| :--- | :--- | :--- | :--- |
+| **`received-routes` コマンドでエラーが表示される。** | 該当ピアに対して `soft-reconfiguration inbound` が設定されていない。 | `show running-config \| section router bgp` | `neighbor <IP> soft-reconfiguration inbound` を追加投入する。 |
+| **インバウンドフィルタを変更したのに BGP テーブルに反映されない。** | フィルタ変更後に `clear ip bgp <IP> soft in` を実行していない。 | `show ip bgp` | `clear ip bgp <IP> soft in` を実行して Route Refresh をトリガーする。 |
+| **Next-Hop がダウンしたのに BGP ピアが数分間 Down にならない。** | BGP Fast Fall-over が未設定、または IGP ルートが完全削除されずデフォルトルートでルーティング解決されている。 | `show ip route <NEXTHOP>`<br>`show ip bgp neighbors <IP>` | `neighbor <IP> fall-over route-map` を構成し、特定明示プレフィックスの消去時のみ Fast Fall-over を発動させる。 |
+| **RR 環境で Add-Paths を設定したのにクライアントが 1 パスしか受信しない。** | RR 上で `bgp additional-paths select` による選定ロジックが定義されていないか、Client 側で `receive` パラメータが抜けている。 | `show ip bgp neighbors <IP>` | RR 側で `bgp additional-paths select best 2` を定義し、ピア配下で `additional-paths send` を有効化する。 |
+
+---
+
+## ⚠ 制限事項
+
+1. **Soft Reconfiguration Inbound のメモリ増大:**  
+   フルフリート（約 90 万プレフィックス以上）を受信する BGP ピアで `soft-reconfiguration inbound` を有効化すると、ルータの RAM 消費量が約 2 倍に跳ね上がり、ルータが OOM（Out of Memory）でクラッシュする危険性があります。
+2. **Add-Paths のプラットフォーム制限:**  
+   旧世代の IOS（12.2S等）や一部のローエンドスイッチでは Hardware FIB（TCAM）の制限により Add-Paths がサポートされない、または最大パス数が制限される場合があります（Cisco IOS-XE 16.x/17.x では標準サポート）。
+
+---
+
+## 🔄 他技術との関連
+
+* **BFD (Bidirectional Forwarding Detection):**  
+  BGP Fast Fall-over と同様にサブ秒単位のリンク障害検知を実現します。`neighbor <IP> fall-over bfd` をバインドすることで、物理層・データリンク層のサイレント障害を迅速に検出します。
+* **MPLS L3VPN / BGP PIC (Prefix Independent Convergence):**  
+  BGP PIC Edge/Core 機能は、BGP 内部テーブルおよび CEF テーブルに事前バックアップパス（Repair Path）を保持させ、対向 PE 障害時にミリ秒（< 50ms）でトラフィックを迂回させます。
+
+---
+
+## 🧩 比較表
+
+### Route Refresh vs Soft Reconfiguration Inbound
+
+| 比較項目 | Route Refresh (RFC 2918) | Soft Reconfiguration Inbound |
+| :--- | :--- | :--- |
+| **動作方式** | 対向ピアへ ROUTE-REFRESH パケットを送出し、UPDATE を動的再送信させる | 受信した全 Raw UPDATE を Adj-RIB-In メモリデータベースに永久保存 |
+| **メモリ消費** | **極めて低い (追加消費ゼロ)** | **極めて高い (BGP 受信データが倍増)** |
+| **対向ルータへの影響** | 対向ルータの CPU を一時的に使用（UPDATE 再送信処理） | **完全ゼロ (自ルータ内部で閉完)** |
+| **事前フィルタ前ルートの閲覧** | 不可 (`received-routes` 使用不可) | **可能 (`received-routes` で閲覧可能)** |
+| **デフォルト動作** | Cisco IOS-XE で自動有効 | **手動設定が必要 (`soft-reconfiguration inbound`)** |
+
+---
+
+## 💡 ベストプラクティス
+
+1. **Route Refresh の優先使用:**  
+   通常の運用およびポリシールーティング更新には `clear ip bgp <IP> soft in` (Route Refresh) を使用し、`soft-reconfiguration inbound` はトラブルシューティング時のみ限定使用する。
+2. **Fast Session Deactivation & BFD の併用:**  
+   マルチホップ eBGP ピアや iBGP ピアには `fall-over route-map` または `fall-over bfd` を設定し、障害検知時間を最小化する。
+3. **Next-Hop Trigger Delay の最適化:**  
+   コア網の高速コンバージエンス要件に合わせて `bgp nexthop trigger delay 1`〜`2` 秒に調整する。
+
+---
+
+## 📝 ラボ学習・設定サンプル例
+
+以下は、CCIE EI ラボ試験レベルに対応する省略なしの 10 個の演習シナリオです。
+
+### Scenario 1: Route Refresh 機能の検証とソフトリセット
+* **要件:** R1 (AS 65001) と R2 (AS 65002) 間の eBGP において、セッションを切断することなくインバウンド Prefix-List を適用・再計算させよ。
+
+**【R1】**
+```bash
+ip prefix-list FILTER_IN deny 10.2.2.0/24
+ip prefix-list FILTER_IN permit 0.0.0.0/0 le 32
+!
+router bgp 65001
+ neighbor 192.168.12.2 remote-as 65002
+ address-family ipv4 unicast
+  neighbor 192.168.12.2 prefix-list FILTER_IN in
+ exit-address-family
+```
+
+**【検証・反映コマンド】**
+```bash
+# セッションを切断せずに動的に Route Refresh を要求
+R1# clear ip bgp 192.168.12.2 soft in
+R1# show ip bgp neighbors 192.168.12.2 | include Route refresh
+# 「Route refresh utility support: received support for inbound soft reset」を確認
+```
+
+---
+
+### Scenario 2: Soft Reconfiguration Inbound の構成と監査
+* **要件:** R1 側で R2 から送信される全プレフィックス（フィルタで拒否されたものを含む未加工ルート）を可視化できるよう設定せよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ neighbor 192.168.12.2 remote-as 65002
+ neighbor 192.168.12.2 soft-reconfiguration inbound
+```
+
+**【検証方法】**
+```bash
+# インバウンドフィルタで拒否されたプレフィックスも含めて全受信ルートを表示
+R1# show ip bgp neighbors 192.168.12.2 received-routes
+```
+
+---
+
+### Scenario 3: BGP Fast Fall-over (Fast Session Deactivation) の構成
+* **要件:** R1-R3 間の Loopback ピアリングにおいて、10.1.13.0/24 への IGP ルートが消失した際、即座に BGP ピアを Down させよ。
+
+**【R1】**
+```bash
+ip prefix-list PATH_TO_R3 seq 5 permit 10.1.13.0/24
+!
+route-map MAP_NEXTHOP_R3 permit 10
+ match ip address prefix-list PATH_TO_R3
+!
+router bgp 65001
+ neighbor 3.3.3.3 remote-as 65001
+ neighbor 3.3.3.3 update-source Loopback0
+ neighbor 3.3.3.3 fall-over route-map MAP_NEXTHOP_R3
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 3.3.3.3 | include Fall-over
+# 「Fall-over route-map is MAP_NEXTHOP_R3」を確認
+```
+
+---
+
+### Scenario 4: BGP Next-Hop Address Tracking (NAT) 遅延短縮
+* **要件:** R1 において、Next-Hop 変更イベントが発生してから BGP テーブルを更新するまでの遅延（Trigger Delay）を 1 秒に変更せよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp nexthop trigger delay 1
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp nexthop
+# Next-Hop tracking が有効であり、Delay が 1 秒にセットされていることを確認
+```
+
+---
+
+### Scenario 5: BGP Additional Paths (Add-Paths) によるセカンドベストアドバタイズ
+* **要件:** RR (R1) において、クライアント R2 に対してベストパスだけでなくセカンドベストパスも含めた最大 2 パスを送出するよう構成せよ。
+
+**【R1 (RR)】**
+```bash
+router bgp 65000
+ address-family ipv4 unicast
+  neighbor 10.1.2.2 route-reflector-client
+  neighbor 10.1.2.2 additional-paths send
+  bgp additional-paths select best 2
+ exit-address-family
+```
+
+**【R2 (Client)】**
+```bash
+router bgp 65000
+ address-family ipv4 unicast
+  neighbor 10.1.1.1 additional-paths receive
+  maximum-paths ibgp 2
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R2# show ip bgp 172.16.10.0/24
+# 同一プレフィックスに対して 2 つの Additional Path を受信していることを確認
+```
+
+---
+
+### Scenario 6: BGP BFD (Bidirectional Forwarding Detection) 統合
+* **要件:** R1 と R2 間の eBGP ピアリングに対して BFD 単一ホップ障害検知を有効化せよ。
+
+**【R1】**
+```bash
+interface GigabitEthernet0/1
+ bfd interval 50 min_rx 50 multiplier 3
+!
+router bgp 65001
+ neighbor 192.168.12.2 remote-as 65002
+ neighbor 192.168.12.2 fall-over bfd
+```
+
+**【検証方法】**
+```bash
+R1# show bfd neighbors client bgp
+```
+
+---
+
+### Scenario 7: Outbound Route Filtering (ORF) プレフィックスレベル連携
+* **要件:** R1 (Receive 側) から R2 (Send 側) へ Prefix-List を動的送信し、R2 側で送出処理自体をフィルタリングさせよ。
+
+**【R1 (Receive)】**
+```bash
+ip prefix-list ORF_PREF deny 172.16.1.0/24
+ip prefix-list ORF_PREF permit 0.0.0.0/0 le 32
+!
+router bgp 65001
+ neighbor 192.168.12.2 remote-as 65002
+ address-family ipv4 unicast
+  neighbor 192.168.12.2 capability orf prefix-list receive
+  neighbor 192.168.12.2 prefix-list ORF_PREF in
+ exit-address-family
+```
+
+**【R2 (Send)】**
+```bash
+router bgp 65002
+ neighbor 192.168.12.1 remote-as 65001
+ address-family ipv4 unicast
+  neighbor 192.168.12.1 capability orf prefix-list send
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R2# show ip bgp neighbors 192.168.12.1 received prefix-filter
+```
+
+---
+
+### Scenario 8: BGP Slow Peer Quarantine (隔離) 機能の設定
+* **要件:** アップデート処理が遅い Slow Peer を自動検知し、通常のピアのコンバージエンス遅延を保護するため隔離設定を行え。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp slow-peer detection threshold 120
+ bgp slow-peer split-update-group dynamic
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp slow-peers
+```
+
+---
+
+### Scenario 9: BGP Graceful Restart (GR) の有効化
+* **要件:** コントロールプレーン再起動（SSO 切替等）時にフォワーディング（CEF）を維持するよう Graceful Restart を構成せよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ bgp graceful-restart restart-time 120
+ bgp graceful-restart stalepath-time 360
+ bgp graceful-restart
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp neighbors 192.168.12.2 | include Graceful
+```
+
+---
+
+### Scenario 10: VRF-Aware 環境での Route Refresh と Soft Reconfig
+* **要件:** VRF `TENANT_A` 配下の BGP ピアに対して `soft-reconfiguration inbound` をバインドせよ。
+
+**【R1】**
+```bash
+router bgp 65001
+ address-family ipv4 unicast vrf TENANT_A
+  neighbor 10.200.1.2 remote-as 65200
+  neighbor 10.200.1.2 soft-reconfiguration inbound
+ exit-address-family
+```
+
+**【検証方法】**
+```bash
+R1# show ip bgp vrf TENANT_A neighbors 10.200.1.2 received-routes
+```
+
+---
+
+## ❓ 想定試験問題
+
+### 1. 【トラブルシューティング】受信ルートが表示できない現象の解析
+**問題:**  
+対向ルータ R2 から受信している全プレフィックスを確認しようと `show ip bgp neighbors 192.168.12.2 received-routes` を実行したところ、以下のエラーが出力されました。この現象が発生する技術的理由と、セッションを切断せずにエラーを解消するための設定を述べてください。
+```text
+% Inbound soft reconfiguration not configured on peer 192.168.12.2
+```
+
+**解答・解説:**
+* **技術的理由:**  
+  `received-routes` オプションは、フィルタ（Prefix-List 等）が適用される前の「未加工受信ルート（Adj-RIB-In）」を表示するコマンドです。この情報を保持するには `neighbor <IP> soft-reconfiguration inbound` が設定されている必要があります。Route Refresh のみが有効な標準状態では、未加工ルートは RAM に保持されないため本エラーが発生します。
+* **修正方法:**  
+  以下のコンフィグを投入し、`clear ip bgp 192.168.12.2 soft in` を実行します（セッション切断は不要）。
+  ```bash
+  router bgp 65001
+   neighbor 192.168.12.2 soft-reconfiguration inbound
+  ```
+
+---
+
+### 2. 【Design / 高速コンバージエンス】中間障害時の BGP 遅延解消
+**問題:**  
+マルチホップ eBGP ピアリングにおいて、中間スイッチ障害で Next-Hop への IP ルートが消失したにもかかわらず、BGP ピアが 180 秒間 Holdtime 満了まで切断されず、トラフィックブラックホールが発生しました。中間障害検知時に即座に BGP ピアを Down させるための設計コマンドを提示してください。
+
+**解答・解説:**
+* **回答:**  
+  `neighbor <IP> fall-over route-map` または `neighbor <IP> fall-over bfd` を設定します。
+* **設定例:**
+  ```bash
+  ip prefix-list PEER_NH permit 10.1.23.0/24
+  !
+  route-map MAP_FALLOVER permit 10
+   match ip address prefix-list PEER_NH
+  !
+  router bgp 65001
+   neighbor 10.1.23.2 fall-over route-map MAP_FALLOVER
+  ```
+
+---
+
+## 🔗 参考リソース
+
+* [Cisco Systems: BGP Configuration Guide - Configuring Soft Reconfiguration and Route Refresh](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/configuration/xe-17/irg-xe-17-book.html)
+* [Cisco Systems: BGP Additional Paths Configuration Guide](https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/iproute_bgp/configuration/xe-17/irg-add-paths.html)
+* [RFC 2918: Route Refresh Capability for BGP-4](https://datatracker.ietf.org/doc/html/rfc2918)
+* [Cisco Live: BRKRST-2337 - Advanced BGP Troubleshooting and Operations](https://www.ciscolive.com/global/on-demand-library.html)
+
+---
+
+## 📝 補足（Notes）
+
+* **Soft Reset コマンドの挙動差:**
+  * `clear ip bgp *` ➔ **Hard Reset (TCP 179 セッションを切断・再確立) - 運用環境では絶対禁止**
+  * `clear ip bgp * soft in` ➔ **Route Refresh または Soft Reconfig による無停止インバウンド更新**
+  * `clear ip bgp * soft out` ➔ **アウトバウンドフィルタ適用後ルートの再送（ローカル処理のみ）**
+
 
 ## 参考リソースリンク
 
