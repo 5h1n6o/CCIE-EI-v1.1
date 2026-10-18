@@ -6,25 +6,24 @@ grand_parent: 4-Infrastructure-Security-and-Services
 nav_order: 2
 ---
 
-# 4.4.c Network Based Application Recognition (NBAR)
+# 4.4.b Classification, trust boundary
 
-CCIE Enterprise Infrastructure (EI) v1.1 Blueprint 領域 `4.4 Quality of Service` における、レイヤ 4 〜 レイヤ 7 ディープパケットインスペクション（DPI: Deep Packet Inspection）技術である **Network Based Application Recognition (NBAR / NBAR2)** の完全学習メモ。
+CCIE Enterprise Infrastructure (EI) v1.1 Blueprint における QoS (Quality of Service) の基盤技術である **`4.4.b Classification, trust boundary`**（トラフィック分類、マーキング、信頼境界、CoS/DSCP 変換、Conditional Trust、MQC vs MLS QoS）に関する詳細な学習メモ。
 
 ---
 
 ## 📘 概要
 
-ネットワークベースアプリケーション認識（NBAR: Network Based Application Recognition、および次世代版 NBAR2 / Next-Generation NBAR）は、IP パケットの L4〜L7 ペイロード（データ部分）を動的に解析する Cisco 独自のディープパケットインスペクション（DPI）エンジンである。
+QoS 処理の第一段階である**分類（Classification）**および**信頼境界（Trust Boundary）**の設定は、エンドツーエンド QoS 設計において最も重要かつ決定的なコンポーネントである。適切な分類とマーキングが行われない限り、後続のキューイング（LLQ/CBWFQ）、ポリシング（Policing）、シェーピング（Shaping）、および輻輳回避（WRED）などの QoS アクションは正しく機能しない。
 
-* **機能概要:** 従来の L4 アクセスリスト（ポート番号固定マッチ）では識別が困難な、動的 TCP/UDP ポート割り当てアプリケーション（P2P、WebEx、Skype、BitTorrent 等）や、HTTP/HTTPS（URL、Host、MIME タイプ）、SSL/TLS 拡張ヘッダー（SNI: Server Name Indication）を判定・分類する。
-* **利用目的:**
-  * **アプリケーションの可視化 (Protocol Discovery):** ネットワーク内を通過するアプリケーションごとのトラフィック比率、帯域消費量（bps）、パケット数、バイト数を可視化する。
-  * **QoS 分類 ＆ マーク (MQC Traffic Classification):** `match protocol` や `match protocol attribute` を使用して MQC（Modular QoS CLI）の `class-map` でマッチさせ、優先制御（LLQ）、帯域保証（CBWFQ）、ポリシング、シェーピング、あるいはドロップ（Scavenger 化）を適用する。
-  * **AVC (Application Visibility Control) 連携:** Flexible NetFlow (FNF) と連携し、フローごとのアプリケーションパフォーマンス指標（遅延、ジッター、ドロップ率）を収集・レポート出力する。
-* **どのような場面で利用するか:**
-  * ポート 80 (HTTP) やポート 443 (HTTPS) を共有する多様な Web アプリケーション（Office 365, Salesforce, WebEx, YouTube, Facebook 等）を個別制御する場合。
-  * ダイナミックポートを使用する 音声/ビデオ会議プロトコル (SIP, H.323, SCCP, RTP Payload) の帯域保護。
-  * 業務外 P2P ファイル共有や動画配信（BitTorrent, Netflix, YouTube）を制限・降格（Scavenger クラスへの分類）する場合。
+* **Classification（トラフィック分類）:**
+  * 受信したパケット/フレームのヘッダー情報（L2 CoS, L2.5 MPLS EXP, L3 IP Precedence/DSCP, L4 TCP/UDP ポート番号, L7 NBAR2 アプリケーション識別）に基づき、トラフィックの種類を特定して適切な QoS クラス（Class）に割り当てる処理。
+  * **目的:** 多種多様なアプリケーショントラフィックをビジネス重要度（Voice, Video, Signaling, Critical Data, Scavenger 等）に応じてカテゴリ分けする。
+
+* **Trust Boundary（信頼境界）:**
+  * ネットワーク内で「パケットに付与された QoS マーク（CoS や DSCP）をそのまま信頼（Trust）するか、または破棄・書き換え（Untrust/Remark）するか」の境界線。
+  * **利用目的:** 一般 PC ユーザーなどの未認証・未信頼な端末による「自発的な高優先度 DSCP（例: EF/46）の不正付与（QoS 偽装・なりすまし）」をネットワーク水際（Access Switch Port）で遮断し、バックボーン帯域の無断占有を防ぐ。
+  * **適用場面:** キャンパスアクセススイッチポート、Cisco IP Phone 接続ポート、WLAN コントローラ (WLC) 境界、WAN ネットワーク境界。
 
 ---
 
@@ -32,162 +31,186 @@ CCIE Enterprise Infrastructure (EI) v1.1 Blueprint 領域 `4.4 Quality of Servic
 
 | 項目 | 内容 |
 | :--- | :--- |
-| **特徴** | L4-L7 Payload DPI エンジン。単一圧縮ファイル Protocol Pack によるシグネチャ更新に対応。 |
-| **用途** | アプリケーション自動識別、QoS マーク/ポリシング、トラフィックプロファイリング、AVC 連携 |
-| **メリット** | 静的ポート番号に依存せず、動的・難読化プロトコルや Web アプリを正確に識別可能 |
-| **デメリット/制限事項** | 高度な CPU / メモリリソースを消費。完全暗号化された未知ペイロードの判定には限界あり |
-| **前提条件** | **CEF (Cisco Express Forwarding)** および **IPv6 CEF** の有効化が必須（`ip cef` / `ipv6 cef`） |
-| **動作モード** | **Passive Mode** (Protocol Discovery) ＆ **Active Mode** (MQC Service-Policy) |
-| **設計上の注意点** | メモリ使用率上限（推奨 70% 以下）の監視。大容量非対称ルーティング環境での判定精度調整 |
+| **特徴** | パケット入口（Ingress Edge）でのトラフィック識別と、QoS マークの信頼判定・再付与処理。 |
+| **用途** | 音声・ビデオ・データ・制御通信の優先度分類、未認証端末からの QoS マークなりすまし防止。 |
+| **メリット** | 不正な優先パケットの排除によるコア網の保護、帯域・遅延要求に応じた正確なサービス提供。 |
+| **デメリット/課題** | アクセスポートごとの適切な Trust 設定や MQC ポリシーの導入が必要で、設計・運用が複雑化する。 |
+| **対応機種** | Cisco Catalyst 9000 シリーズ, Catalyst 3850/4500E/6500, ISR4000, ASR1000, Cisco Catalyst SD-WAN エッジルータ。 |
+| **制限事項** | MLS QoS（Catalyst 3750 等）と MQC (IOS XE) で CLI 構文・動作（デフォルト Trust 状態）が著しく異なる。 |
+| **設計上の注意点** | 信頼境界は「可能な限りエンドポイントに近い水際（Access Layer）」に配置するのが原則。IP Phone 経由 PC トラフィックの CoS 0 リセット処理を考慮すること。 |
 
 ---
 
 ## 🏗 動作原理
 
-NBAR / NBAR2 は、ルータに入力されたパケットに対して CEF 転送パスと連動し、データプレーン（Cisco Catalyst 8000 / ASR 1000 の ESP または ISR G2 の IOS 処理エンジン）上で高速にパケットヘッダーおよびペイロードのシグネチャを照合する。
+信頼境界と分類・マーキング処理は、パケットがスイッチ/ルータに入力（Ingress）された直後に実行される。
 
 ```
-[ Ingress Packet ]
-       ↓
-[ CEF Switching Path (ip cef / ipv6 cef) ]
-       ↓
-[ NBAR2 DPI Engine (Protocol Pack / PDL) ]
-       ├─► L4 Header Inspection (TCP/UDP Ports, IP Options)
-       ├─► L7 Payload Inspection (HTTP Host/URL, SSL/TLS SNI, ASCII/HEX Offsets)
-       └─► Attribute Matching (Category, Sub-category, Application-Group)
-       ↓
-[ MQC Class-Map Evaluation (match protocol ...) ]
-       ↓
-[ QoS Policy Action (Set DSCP, Police, Shape, Drop, Priority Queue) ]
-       ↓
-[ Egress Interface Forwarding ]
+[ エンドポイント ] (PC / Cisco IP Phone / Server)
+       │
+       ▼  (Ingress Packet with CoS/DSCP)
+┌──────────────────────────────────────────────────────────┐
+│              Ingress Interface (Switch Port)             │
+├──────────────────────────────────────────────────────────┤
+│ 1. Trust Boundary Check (信頼境界判定)                   │
+│    - Untrusted: QoS マークを無視し CoS/DSCP = 0 にリセット   │
+│    - Trusted (CoS/DSCP): 既存の CoS または DSCP を維持     │
+│    - Conditional Trust: CDP で Cisco IP Phone 等を検出時のみ │
+│                         音声 VLAN の CoS 5/3 を信頼        │
+├──────────────────────────────────────────────────────────┤
+│ 2. Classification & Marking (分類 ＆ マーク付与)         │
+│    - Class-Map (ACL, DSCP, CoS, NBAR2) でパケット識別    │
+│    - Policy-Map 内の set dscp / set cos でマーキング更新   │
+├──────────────────────────────────────────────────────────┤
+│ 3. Mapping Table Conversion (内部変換テーブル)           │
+│    - CoS-to-DSCP マッピング (CoS 5 ➔ DSCP EF/46)         │
+│    - DSCP-to-CoS マッピング                                │
+└──────────────────────────────────────────────────────────┘
+       │
+       ▼
+[ Egress Queuing / Scheduling ] (LLQ / CBWFQ / WRED)
 ```
-
-### 1. Protocol Pack (プロトコルパック) と PDL
-* **Classic NBAR:** 個別のシグネチャファイルである PDLM (Packet Description Language Module) を Flash から読み込んでメモリに初期展開していた。
-* **NBAR2 (Next-Gen NBAR):** 1,500 種類以上のプロトコルシグネチャを 1 つの圧縮ファイル（Protocol Pack）に集約。ルータの OS (IOS XE) を再起動・アップグレードすることなく、`ip nbar protocol-pack` コマンドでシグネチャライブラリのみを動的にオンライン更新可能。
-
-### 2. アトリビュート（属性）による階層的分類
-NBAR2 は各プロトコルに対してメタデータ（属性）を付与しており、広範なアプリケーション群を 1 行のコマンドで抽象化マッチングできる。
-* **Category:** 例 `voice-and-video`, `business-and-productivity-tools`, `file-sharing`, `email`
-* **Sub-category:** 例 `voice-video-chat-collaboration`, `streaming`, `p2p-file-transfer`
-* **Application-group:** 例 `webex-group`, `office-365-group`
-* **Encrypted:** `encrypted-yes` / `encrypted-no`（暗号化の有無による分類）
 
 ---
 
 ## ⚙ 動作シーケンス
 
-NBAR2 によるパケット処理および QoS アクション適用は、以下の順序で実行される。
+パケットが Catalyst スイッチまたはルータに入力された際の処理手順：
 
-```
-Client / Endpoint
-   ↓  (HTTP GET / TLS Client Hello / Dynamic RTP Stream)
-Ingress Interface
-   ↓  (ip nbar protocol-discovery または MQC service-policy input)
-CEF Lookup & State Tracking
-   ↓  (フローごとに最初の数パケットのペイロードを抽出)
-NBAR2 DPI Pattern Matching
-   ├─ 1. Well-known Port / L4 Header Check
-   ├─ 2. HTTP Host / URL / MIME / User-Agent Inspection
-   ├─ 3. SSL/TLS Server Name Indication (SNI) / Certificate Inspection
-   └─ 4. Custom Signature (ASCII / HEX Pattern Offset Check)
-   ↓  (プロトコル判定完了: 例 "webex-media", "youtube", "bittorrent")
-MQC Class-Map Matching (match protocol / match protocol attribute)
-   ↓
-Policy-Map Action Execution
-   ├─ Conform: Set DSCP AF41 / Transmit
-   ├─ Exceed: Set DSCP CS1 (Down-mark)
-   └─ Violate: Drop
-   ↓
-Egress Interface (LLQ / CBWFQ Queuing)
-```
+1. **パケットの受信と L2/L3 ヘッダー解析:**
+   * 入力フレームの 802.1Q タグ内の CoS ビット（3ビット）および IP ヘッダー内の DSCP フィールド（6ビット）を確認する。
+
+2. **信頼境界（Trust State）の評価:**
+   * **Untrusted ポート:** パケットの既存マークを無視し、内部 QoS ラベル (Internal DSCP) を 0（Best Effort）に書き換える。
+   * **Trusted CoS ポート:** 802.1Q タグの CoS 値を受け入れ、`CoS-to-DSCP` マッピングテーブルを参照して内部 DSCP を算出（例: CoS 5 ➔ DSCP 46）。
+   * **Trusted DSCP ポート:** L3 IP パケットの DSCP 値をそのまま信頼して内部 DSCP に適用。
+   * **Conditional Trust (条件付き信頼):** CDP (Cisco Discovery Protocol) で対向の Cisco IP Phone を正常検出した場合にのみ、Voice VLAN からの CoS 5 (Voice) / CoS 3 (Signaling) の信頼を動的に有効化。PC ポート（Data VLAN）からのトラフィックは CoS 0 に強制上書き。
+
+3. **MQC Class-Map によるトラフィック分類:**
+   * `class-map` 内の `match` 条件（`match access-group`, `match dscp`, `match cos`, `match protocol` 等）と照合。
+
+4. **MQC Policy-Map による Marking アクションの適用:**
+   * `set dscp <VALUE>` または `set cos <VALUE>` アクションにより、パケットの QoS マークを新しい規定値に書き換える。
+
+5. **内部 DSCP から Egress Queuing への転送:**
+   * 算出・書き換えられた内部 DSCP に基づいて、送信キュー（Egress Hardware Queue）およびドロップ閾値（WRED / Tail Drop）が割り当てられる。
 
 ---
 
 ## 🎯 試験対策（CCIE EIラボ試験）
 
-CCIE EI v1.1 Practical Lab 試験において、NBAR / NBAR2 は単独の機能問にとどまらず、**複雑な QoS 要件（MQC 組み合わせ）、AVC (Application Visibility Control) 連携、SD-WAN アプリケーション識別 (App-Route)** の基礎コンポーネントとして頻出する。
+CCIE Enterprise Infrastructure ラボ試験において、`Classification and Trust Boundary` は非常にトラブルや引っかけ問題が作りやすい技術領域である。
 
-### 1. ラボ試験で頻出の構成要件と設定指示の解読
-* **「ACL を使用せずに特定アプリケーションを識別せよ」:**  
-  ポート番号が変動する通信（WebEx, Skype, RTP, P2P）に対して ACL では追従できないため、必ず NBAR (`match protocol`) を使用する。
-* **「アトリビュート（属性）を用いて一括してクラス分類せよ」:**  
-  `match protocol attribute category <NAME>` や `match protocol attribute sub-category <NAME>` を使用して、数千種類の同種アプリを一括定義する。
-* **「カスタムアプリケーションシグネチャを定義せよ」:**  
-  `ip nbar custom <NAME>` コマンドを使用して、特定の ASCII 文字列（例: "SALES"）や HEX パターン、特定ポート範囲からのトラフィックを新規プロトコルとして登録する。
-* **「否定マッチ（`match not protocol`）を活用せよ」:**  
-  一般のストリーミングビデオクラスから特定動画サイト（YouTube, Netflix）を外し、それらを別途 Scavenger クラスへ落とし込む階層マッチ。
+### 1. ラボ試験での最重要ポイント
+* **MLS QoS vs MQC (IOS XE) の動作の決定的違い:**
+  * **MLS QoS (旧 Catalyst 3750/3560 等):** グローバルで `mls qos` を有効化すると、**全ポートがデフォルトで Untrusted (`mls qos trust` なし)** となり、明示的に `mls qos trust dscp` や `mls qos trust cos` を書かないと全パケットの DSCP/CoS が 0 にリセットされる。
+  * **MQC (Catalyst 9000 / IOS XE):** デフォルトで **QoS が有効かつ DSCP/CoS が保持（Preserved / Trusted）** される。`service-policy` をバインドしない限りマークは変化しない。
+* **CoS-to-DSCP デフォルトマッピングの罠:**
+  * 従来の `mls qos trust cos` では、CoS 5 のデフォルトマッピング値は `CoS 5 × 8 = 40` (CS5) となり、**RFC 3246 定義の DSCP EF (46) にはならない**。そのため、`mls qos map cos-dscp 0 8 16 24 32 46 48 56` のように手動で CoS 5 ➔ 46 の修正コマンドを入れる必要がある。
+* **Conditional Trust (Cisco IP Phone 接続) の構成要件:**
+  * `qos trust device cisco-phone` (C3PL / IOS XE) または `mls qos trust device cisco-phone` (MLS QoS)。
+  * CDP が無効 (`no cdp run` や インターフェイスで `no cdp enable`) になっていると、IP Phone が識別できず Conditional Trust が解除されて全パケットが Untrusted (CoS/DSCP 0) にフォールバックする。
 
-### 2. ラボ試験での典型的な設定ミスと「ハマりポイント」
-* **`ip cef` / `ipv6 cef` の無効化:**  
-  CEF が無効な状態では NBAR DPI エンジンが作動しない。必ずグローバルで CEF が有効化されていることを確認する。
-* **`match ip dscp` と `match dscp` の誤用:**  
-  `match ip dscp` は IPv4 パケットのみに一致し、IPv6 トラフィックをスルーしてしまう。デュアルスタック要件では必ず **`match dscp`** または **`match protocol`** を使用する。
-* **`match-all` と `match-any` のミス:**  
-  複数アトリビュートを組み合わせる際（例: カテゴリが `voice-and-video` かつ サブカテゴリが `streaming`）、`class-map match-all` で定義しないと AND 条件にならない。
-
----
+### 2. よくある設定ミス ＆ トラブルシューティング
+* **トラブル 1: `match ip dscp` vs `match dscp` の誤用:**
+  * `match ip dscp` は **IPv4 パケットのみ**にマッチし、IPv6 トラフィックをスルーしてしまう。CCIE EI ではデュアルスタック環境が一般的なため、**`match dscp`** を使用するのが正解。
+* **トラブル 2: IP Phone 配下の PC トラフィックが優先扱いされてしまう:**
+  * IP Phone 側の設定（`switchport priority extend trust` など）を誤って全信頼にすると、PC から送信された偽装 CoS 5 パケットがそのまま通過してしまう。PC ポートは CoS 0 リセット（`switchport priority extend cos 0`）にする必要がある。
+* **トラブル 3: IPsec / GRE トンネル環境での QoS マーク消失:**
+  * トンネルインターフェイスでパケットが暗号化・カプセル化される際、アウター IP ヘッダーにインナー DSCP がコピーされない場合がある。`qos pre-classify` コマンドをトンネルまたは暗号化インターフェイスに適用する必要がある。
 
 
 ## 🛠 設定方法
 
-### 1. 基本的な NBAR2 MQC 分類 ＆ マーキング設定
+Cisco IOS XE (Catalyst 9000 シリーズ / MQC / C3PL) およびレガシー Catalyst (MLS QoS) における代表的な設定例を示す。
+
+### 1. MQC (IOS XE / Catalyst 9000) での標準的な Classification ＆ Marking
+
 ```bash
-! 1. 単一プロトコルの直接マッチ
-class-map match-all CM_WEBEX
- match protocol webex-media
+! --- 1. Class-Map の定義 (IPv4/IPv6 両対応の match dscp を使用) ---
+class-map match-all CM_VOICE
+ match dscp ef
 
-! 2. アトリビュート（カテゴリ / サブカテゴリ）による集約マッチ
-class-map match-all CM_BUSINESS_APPS
- match protocol attribute category business-and-productivity-tools
+class-map match-all CM_SIGNALING
+ match dscp cs3
 
-! 3. 否定条件（match-not）を含むストリーミング分類
-class-map match-all CM_STREAMING_VIDEO
- match protocol attribute category voice-and-video
- match protocol attribute sub-category streaming
- match not protocol youtube
- match not protocol netflix
+class-map match-any CM_CRITICAL_DATA
+ match dscp af21 af22 af23
+ match access-group name ACL_CRITICAL_APPS
 
-! 4. MQC Policy-Map でのアクション定義
-policy-map PM_MARKING_LAN
- class CM_WEBEX
-  set dscp af41
- class CM_BUSINESS_APPS
+! --- 2. Policy-Map の定義 ＆ マーク書き換え (Set Actions) ---
+policy-map PM_INGRESS_MARKING
+ class CM_VOICE
+  set dscp ef
+ class CM_SIGNALING
+  set dscp cs3
+ class CM_CRITICAL_DATA
   set dscp af21
- class CM_STREAMING_VIDEO
-  set dscp af31
  class class-default
   set dscp default
 
-! 5. インターフェイスへの適用
-interface GigabitEthernet0/0/1
- service-policy input PM_MARKING_LAN
+! --- 3. インターフェイスへのバインド ---
+interface GigabitEthernet1/0/1
+ description Access_Port_To_Server
+ service-policy input PM_INGRESS_MARKING
 ```
 
-### 2. カスタムプロトコル (`ip nbar custom`) 定義
+### 2. Conditional Trust (Cisco IP Phone 接続ポート) の設定 (IOS XE)
+
 ```bash
-! 例 1: ペイロードオフセット 5 バイト目に ASCII 文字列 "SALES" を含む TCP トラフィック
-ip nbar custom CUST_SALES_APP 5 ascii SALES source tcp 4567
+! --- 1. CoS から DSCP への書き換えポリシーマップ作成 ---
+class-map match-all CM_COS_VOICE
+ match cos 5
 
-! 例 2: 7 バイト目に HEX 値 0x56 を含む UDP トラフィック
-ip nbar custom CUST_VIRUS_SIG 7 hex 56 destination udp 3000
+class-map match-all CM_COS_SIGNALING
+ match cos 3
 
-! 例 3: 特定の HTTP Host / URL パターンに一致するカスタム Web アプリ
-ip nbar custom CUST_INTERNAL_PORTAL http host "*portal.company.local"
+policy-map PM_IPPHONE_TRUST
+ class CM_COS_VOICE
+  set dscp ef
+ class CM_COS_SIGNALING
+  set dscp cs3
+ class class-default
+  set dscp default
 
-! カスタムプロトコルの Class-Map 適用
-class-map match-all CM_CUSTOM_APP
- match protocol CUST_SALES_APP
+! --- 2. アクセスポートでの Conditional Trust 有効化 ＆ ポリシー適用 ---
+interface GigabitEthernet1/0/10
+ description Connect_to_Cisco_IP_Phone
+ switchport mode access
+ switchport access vlan 10
+ switchport voice vlan 110
+ spanning-tree portfast
+ 
+ ! CDP による Cisco IP Phone 検出時のみ Trust を拡張
+ qos trust device cisco-phone
+ service-policy input PM_IPPHONE_TRUST
 ```
 
-### 3. Protocol Discovery (トラフィックプロファイリング) 有効化
+### 3. NBAR2 (L7 Deep Packet Inspection) によるアプリ分類 ＆ Marking
+
 ```bash
-interface GigabitEthernet0/0/2
- ! IPv4 トラフィックの自動プロファイリング有効化
+! --- 1. NBAR2 プロトコル識別による Class-Map ---
+class-map match-any CM_WEBEX
+ match protocol webex-media
+ match protocol webex-app
+
+class-map match-any CM_SCAVENGER
+ match protocol bittorrent
+ match protocol youtube
+
+! --- 2. Policy-Map の作成 ---
+policy-map PM_NBAR_MARKING
+ class CM_WEBEX
+  set dscp af41
+ class CM_SCAVENGER
+  set dscp cs1
+ class class-default
+  set dscp default
+
+! --- 3. インターフェイス設定 ---
+interface GigabitEthernet1/0/20
  ip nbar protocol-discovery
- ! IPv6 トラフィックの自動プロファイリング有効化
- ip nbar protocol-discovery ipv6
+ service-policy input PM_NBAR_MARKING
 ```
 
 ---
@@ -196,14 +219,14 @@ interface GigabitEthernet0/0/2
 
 | 目的 | コマンド |
 | :--- | :--- |
-| **NBAR 動作状態確認** | `show ip nbar protocol-discovery [top-n <N>]` |
-| **特定プロトコルの属性表示** | `show ip nbar protocol-attribute <PROTOCOL_NAME>` |
-| **指定属性に対応するプロトコル一覧** | `show ip nbar attribute category <CATEGORY_NAME>` |
-| **カスタムプロトコルポートマップ** | `show ip nbar port-map [<CUSTOM_NAME>]` |
-| **Protocol Pack バージョン確認** | `show ip nbar protocol-pack active` |
-| **MQC パケットマッチ数・ドロップ数確認** | `show policy-map interface <INT_NAME>` |
-| **NBAR メモリ / リソース状態確認** | `show ip nbar resources flow` |
-| **デバッグログ有効化** | `debug ip nbar classification` / `debug ip nbar packets` |
+| **QoS ポリシーの適用状態確認** | `show policy-map interface <INTERFACE>` |
+| **Class-Map の定義内容確認** | `show class-map` |
+| **Policy-Map の定義内容確認** | `show policy-map` |
+| **ポートの QoS Trust 状態確認 (IOS XE)** | `show platform qos interface <INTERFACE>` |
+| **ポートの QoS Trust 状態確認 (MLS QoS)** | `show mls qos interface <INTERFACE>` |
+| **CoS-to-DSCP マッピング確認 (MLS QoS)** | `show mls qos map cos-dscp` |
+| **NBAR2 アプリケーション検出統計確認** | `show ip nbar protocol-discovery` |
+| **QoS インターフェイスパケットカウンタ詳細** | `show platform qos dscp-cos counters <INTERFACE>` |
 
 ---
 
@@ -211,504 +234,583 @@ interface GigabitEthernet0/0/2
 
 | 症状 | 原因 | 確認コマンド | 対処方法 |
 | :--- | :--- | :--- | :--- |
-| **NBAR マッチ数が一切増加しない** | CEF (`ip cef`) が無効化されている | `show ip cef` | `ip cef` および `ipv6 cef` をグローバルで有効化する |
-| **`show ip nbar protocol-discovery` で Unknown が多発する** | 非対称ルーティングにより双方向フローを追跡できない | `show ip nbar protocol-discovery` | 非対称パスを解消するか、`ip nbar custom` で手動識別ルールを定義する |
-| **HTTPS アプリケーションが正しく分類されない** | TLS/SSL 暗号化により L7 ペイロードが不可視 | `show ip nbar protocol-attribute <NAME>` | SNI (Server Name Indication) 照合を活用するか、IP 範囲 / Custom シグネチャを併用する |
-| **新種アプリが識別されず class-default へ流れる** | ルータ内蔵の Protocol Pack シグネチャが古い | `show ip nbar protocol-pack active` | 最新の Protocol Pack File (`.pak`) をダウンロードし `ip nbar protocol-pack` で適用する |
-| **NBAR 有効化後に CPU 使用率が急上昇する** | アクティブフロー数がメモリ上限・しきい値を超滅 | `show ip nbar resources flow` | 不要なインターフェイスの `ip nbar protocol-discovery` を停止し、MQC 適用ポイントを精査する |
+| **IP Phone の音声が断続的・遅延する** | CDP が無効化されており Conditional Trust が有効化されず CoS 5 が 0 にリセットされている | `show cdp neighbors`<br>`show policy-map interface` | `cdp run` および対象ポートで `cdp enable` を有効化する |
+| **IPv6 音声通信の QoS マークが脱落する** | `match ip dscp ef` が使用されており、IPv6 パケットがマッチしていない | `show class-map`<br>`show policy-map interface` | `match ip dscp` を IPv4/IPv6 双方にマッチする **`match dscp`** に変更する |
+| **MLS スイッチで QoS 設定が一切反映されない** | グローバルコマンド `mls qos` が投入されていない | `show mls qos` | グローバルコンフィグで `mls qos` を実行する |
+| **PC からの直打ち DSCP EF パケットがそのまま通過する** | アクセスポートが誤って `trust dscp` に設定されている | `show platform qos interface` | アクセスポートの Trust を解除（Untrusted）し、インバウンドで `set dscp default` または Conditional Trust を適用する |
+| **GRE / IPsec トンネル経由の通信で QoS 優先制御が効かない** | トンネル外側ヘッダーに内側パケットの DSCP が引き継がれていない | `show policy-map interface` | トンネルまたは物理 I/F に `qos pre-classify` を設定する |
 
 ---
 
 ## ⚠ 制限事項
 
-* **CEF 依存性:** CEF (Cisco Express Forwarding) が無効なインターフェイスやプロセススイッチングトラフィックには適用不可。
-* **非対称ルーティング (Asymmetric Routing):** TCP/UDP のハンドシェイクや双方向シーケンスが観察できない片道パスでは、プロトコル判定が `Unknown` にフォールバックする。
-* **完全暗号化ペイロード:** ESNI (Encrypted SNI) や ECH (Encrypted Client Hello) が適用された通信では、L7 ドメイン名が隠蔽されるため IP アドレスブロックや補完的識別技術が必要。
-* **リソース制限:** NBAR2 はメモリ使用率上限（デフォルト割り当て領域）を設定しており、アクティブフロー数が過剰になると新規フローの DPI 解析がスキップされる。
+* **ハードウェア TCAM リソースの限界:**
+  * スイッチの TCAM リソースを超過する複雑な ACL や NBAR2 ルールを多数記述すると、QoS ポリシーが Hardware 処理から Software 処理（CPU 転送）にフォールバックし、通信遅延や CPU 高負荷を引き起こす。
+* **プラットフォーム間の構文非互換性:**
+  * IOS XE (Catalyst 9000) では C3PL (Common Classification Policy Language) に統一されており、従来の `mls qos` コマンド群は完全に非サポート。
+* **Egress 方向の NBAR2 制限:**
+  * NBAR2 アプリケーション識別は、多くのプラットフォームで Ingress 方向の適用が推奨・限定されている。
 
 ---
 
 ## 🔄 他技術との関連
 
-* **MQC (Modular QoS CLI):** `class-map` 内の `match protocol` 条件として NBAR2 を直接呼び出し、`set dscp`, `police`, `shape`, `priority` 等の QoS アクションを適用する。
-* **AVC (Application Visibility Control):** NBAR2（アプリ識別）＋ Flexible NetFlow（フロー出力）＋ MQC（制御）を組み合わせた Cisco の統合アプリケーション管理フレームワーク。
-* **SD-WAN (App-Route / Application-Aware Routing):** WAN Edge (cEdge) 上で NBAR2 DPI エンジンを利用してアプリ（Office365, WebEx 等）をリアルタイム識別し、SLA（遅延・ジッター・ドロップ率）に応じた最適回線（MPLS vs Internet）へ動的ルーティングする。
-* **PfR (Performance Routing):** NBAR2 でプロファイリングされたアプリクラスを PfR マップにバインドし、回線状態に応じた経路切り替えを実行。
+* **QoS Queuing & Scheduling (LLQ / CBWFQ):**
+  * Classification ＆ Marking によって付与された DSCP 値（EF, AF41, CS3 等）に基づいて、Egress 側のハードウェアキュー（Priority Queue / Bandwidth Queue）にパケットが振り分けられる。
+* **Wireless QoS (CAPWAP / WMM):**
+  * 無線 LAN 環境では、WMM (Wi-Fi Multimedia) の User Priority (UP 0〜7) と 有線網の DSCP / CoS との相互マッピングが行われる。
+* **Switch Security (Port Security / 802.1X):**
+  * 802.1X 認証成功後に Cisco ISE から RADIUS dACL または Dynamic VLAN とともに QoS Policy-Map 名を動的付与することが可能。
 
 ---
 
 ## 🧩 比較表
 
-| 比較項目 | L4 ACL ベース分類 | Classic NBAR (PDLM) | NBAR2 (Next-Gen) |
-| :--- | :--- | :--- | :--- |
-| **識別レイヤ** | L3/L4 (IP, Port) | L4-L7 (DPI) | L4-L7 (Advanced DPI) |
-| **シグネチャ管理** | 静的（手動定義） | 個別 PDLM ファイル | 統合 Protocol Pack (.pak) |
-| **対応プロトコル数** | 限定的 | 数百種類 | 1,500 種類以上 |
-| **動的ポート追跡** | 不可 | 可能 | 高精度で可能 |
-| **IPv6 サポート** | 別途 IPv6 ACL が必要 | 限定的 | **完全ネイティブ対応** |
-| **属性（Attribute）機能**| なし | なし | **Category / Sub-category 対応** |
+### 1. L2 CoS vs L3 DSCP 比較
+
+| 項目 | L2 CoS (Class of Service) | L3 DSCP (Differentiated Services Code Point) |
+| :--- | :--- | :--- |
+| **標準規格** | IEEE 802.1p (802.1Q ヘッダー内) | RFC 2474 / RFC 2475 (IP ヘッダー内) |
+| **ビット長 / 段階** | 3 ビット (0 〜 7 の 8 段階) | 6 ビット (0 〜 63 の 64 段階) |
+| **透過性 (End-to-End)** | **L2 境界（ルータ通過時）で消滅**する | **エンドツーエンドで保持**される（L3 透過） |
+| **適用場所** | Trunk ポート、Voice VLAN タグ付きフレーム | IP パケット全般 (L3 ネットワーク全体) |
+
+### 2. MLS QoS vs MQC (IOS XE) 比較
+
+| 項目 | MLS QoS (レガシー Catalyst) | MQC / C3PL (IOS XE / Cat9k) |
+| :--- | :--- | :--- |
+| **有効化コマンド** | 手動で `mls qos` が必須 | デフォルトで有効（コマンド不要） |
+| **デフォルト Trust 状態** | `mls qos` 有効化で**全ポート Untrusted** | **デフォルトで Trust (Preserved)** |
+| **設定体系** | `mls qos trust`, `mls qos map` 等独自 | `class-map`, `policy-map`, `service-policy` |
 
 ---
 
 ## 💡 ベストプラクティス
 
-1. **適材適所のバインド:**  
-   ハードウェア ASIC（Catalyst スイッチ等）で処理可能な L3/L4 マーキングはアクセススイッチ側で行い、DPI 処理（NBAR2）が必要なアプリケーションのみを WAN ルータの Ingress LAN 境界で処理させる。
-2. **属性（Attribute）を活用した分類の簡素化:**  
-   個別アプリ（Skype, Zoom, WebEx, Teams 等）を 1 つずつ定義するのではなく、`sub-category voice-video-chat-collaboration` 等の属性を使用して保守性を向上させる。
-3. **リソース状態の事前確認:**  
-   大規模拠点やコアWANルータで有効化する際は、`show ip nbar resources flow` でメモリ使用率を計測し、推奨上限（70%）を超えないよう設計する。
-
----
+1. **信頼境界は「水際（Access Edge）」で確立する:**
+   * 一般端末が接続されるポートは原則 Untrusted とし、Cisco IP Phone などの承認済み端末ポートのみ Conditional Trust を適用する。
+2. **DSCP ベースの統一設計を採用する:**
+   * L2 CoS はルータ越えで消失するため、ネットワーク全体としては L3 DSCP（RFC 4594 準拠）で一貫した分類・マーキングを行う。
+3. **`match dscp` の使用を徹底する:**
+   * デュアルスタック環境での漏れを防ぐため、`match ip dscp` ではなく IPv4/IPv6 共通の `match dscp` を選択する。
+4. **NBAR2 の乱用を避ける:**
+   * Deep Packet Inspection (NBAR2) は CPU / TCAM 負荷が高いため、アクセスエッジの主要アプリケーション識別のみに絞って適用する。
 
 
 ## 📝 ラボ学習・設定サンプル例
 
-### ラボ 1: NBAR2 による WebEx ミーティング識別 ＆ DSCP AF41 マーキング
+### ラボ 1: アクセスポート Untrusted 化 ＆ MQC による 3 クラス分類・マーキング
 
-* **問題:** 拠点ルータ R1 において、社員が利用する Cisco WebEx 通信（`webex-media` および `webex-meeting`）を NBAR2 で自動識別し、LAN 入力インターフェイスで `DSCP AF41` をマークせよ。
+* **問題:** スイッチ Catalyst-1 の GigabitEthernet1/0/1（PC 接続ポート）において、PC から送信される既存の QoS マークを一切信用せず（Untrusted）、DSCP に基づいてトラフィックを 3 クラスに再分類・マーキングせよ。
 * **要件:**
-  * ACL による IP/Port 直書きは禁止する。
-  * NBAR2 アプリケーション識別を使用すること。
-  * 入力インターフェイス GigabitEthernet0/0/1 に適用すること。
+  * UDP 16384-32767 通信を Voice クラスとし、`DSCP EF` (46) にマークせよ。
+  * TCP 5060-5061 通信を Signaling クラスとし、`DSCP CS3` (24) にマークせよ。
+  * その他の全トラフィックは `DSCP default` (0) にリセットせよ。
+  * IPv4 および IPv6 の双方で動作すること。
+
 * **設定例:**
 ```bash
-! 1. WebEx アプリケーションを識別する Class-Map の作成
-class-map match-any CM_WEBEX_TRAFFIC
- match protocol webex-media
- match protocol webex-meeting
- match protocol webex-app-sharing
+! --- 1. トラフィック識別用 ACL の作成 ---
+ip access-list extended ACL_VOICE_RTP
+ permit udp any any range 16384 32767
 
-! 2. DSCP AF41 を付与する Policy-Map の作成
-policy-map PM_MARKING_INGRESS
- class CM_WEBEX_TRAFFIC
-  set dscp af41
+ip access-list extended ACL_SIGNALING
+ permit tcp any any range 5060 5061
+
+! --- 2. Class-Map の定義 (IPv4/IPv6 共通の match 構文) ---
+class-map match-any CM_LAB1_VOICE
+ match access-group name ACL_VOICE_RTP
+
+class-map match-any CM_LAB1_SIGNALING
+ match access-group name ACL_SIGNALING
+
+! --- 3. Policy-Map の定義 ---
+policy-map PM_LAB1_UNTRUST_MARK
+ class CM_LAB1_VOICE
+  set dscp ef
+ class CM_LAB1_SIGNALING
+  set dscp cs3
  class class-default
   set dscp default
 
-! 3. LAN 側入力インターフェイスへのバインド
-interface GigabitEthernet0/0/1
- service-policy input PM_MARKING_INGRESS
+! --- 4. インターフェイスへの適用 ---
+interface GigabitEthernet1/0/1
+ description PC_Access_Port
+ switchport mode access
+ switchport access vlan 10
+ service-policy input PM_LAB1_UNTRUST_MARK
 ```
+
 * **検証方法:**
-  * `show class-map CM_WEBEX_TRAFFIC` でプロトコル定義を確認。
-  * 端末から WebEx ミーティングを開始し、`show policy-map interface GigabitEthernet0/0/1` で `CM_WEBEX_TRAFFIC` クラスのパケット数 / バイト数が増加し、`set dscp af41` が実行されていることを確認。
+  * `show policy-map interface GigabitEthernet1/0/1` を実行し、`CM_LAB1_VOICE` および `CM_LAB1_SIGNALING` クラスでパケットがマッチし、`set dscp` カウンタが増加していることを確認。
 
 ---
 
-### ラボ 2: NBAR2 Attribute ベース分類による File-Sharing カテゴリポリシング
+### ラボ 2: Cisco IP Phone 接続ポートの Conditional Trust ＆ CoS-to-DSCP 変換構成
 
-* **問題:** ネットワーク帯域圧迫を防止するため、`file-sharing` カテゴリに属するすべての P2P / ファイル共有アプリケーションをまとめてポリシングし、1 Mbps（バースト 15,000 バイト）を超えた通信をドロップせよ。
+* **問題:** 物理ポート GigabitEthernet1/0/10 に接続された Cisco IP Phone からの音声通信を保護するため、CDP による動的 Conditional Trust を設定せよ。
 * **要件:**
-  * 個別プロトコル名ではなく、NBAR2 アトリビュート (`category`) を使用すること。
-  * 超過パケットはドロップ（`exceed-action drop`）させること。
+  * Cisco IP Phone が検出された場合のみ、Voice VLAN (VLAN 110) からの CoS 5 通信を `DSCP EF` に、CoS 3 通信を `DSCP CS3` に変換して信頼せよ。
+  * 電話背面の PC ポート (Data VLAN 10) から送信されるトラフィックは全て `DSCP default` (0) にリセットせよ。
+
 * **設定例:**
 ```bash
-! 1. file-sharing カテゴリに属する全アプリにマッチする Class-Map
-class-map match-all CM_FILE_SHARING_APPS
- match protocol attribute category file-sharing
+! --- 1. Class-Map の定義 ---
+class-map match-all CM_PHONE_VOICE
+ match cos 5
 
-! 2. 1Mbps のポリシングを定義する Policy-Map
-policy-map PM_POLICE_FILE_SHARING
- class CM_FILE_SHARING_APPS
-  police cir 1000000 bc 15000
-   conform-action transmit
-   exceed-action drop
+class-map match-all CM_PHONE_SIGNALING
+ match cos 3
 
-! 3. インターフェイスへ適用
-interface GigabitEthernet0/0/2
- service-policy input PM_POLICE_FILE_SHARING
+! --- 2. Policy-Map の定義 ---
+policy-map PM_CONDITIONAL_TRUST
+ class CM_PHONE_VOICE
+  set dscp ef
+ class CM_PHONE_SIGNALING
+  set dscp cs3
+ class class-default
+  set dscp default
+
+! --- 3. インターフェイス設定 ＆ Conditional Trust 適用 ---
+interface GigabitEthernet1/0/10
+ description Connect_Cisco_IP_Phone
+ switchport mode access
+ switchport access vlan 10
+ switchport voice vlan 110
+ cdp enable
+ qos trust device cisco-phone
+ service-policy input PM_CONDITIONAL_TRUST
 ```
+
 * **検証方法:**
-  * `show ip nbar attribute category file-sharing` を実行し、BitTorrent や FTP、Dropbox 等が該当属性に含まれることを確認。
-  * 大容量ファイル転送を発生させ、`show policy-map interface GigabitEthernet0/0/2` で `exceed` カウンタが増加してドロップされていることを確認。
+  * `show cdp neighbors` で IP Phone が正常認識されていることを確認。
+  * `show platform qos interface GigabitEthernet1/0/10` を実行し、`Trust State` が `Trust CoS` に動的昇格していることを確認。
 
 ---
 
-### ラボ 3: NBAR2 否定マッチ (`match not protocol`) による Scavenger クラス分離
+### ラボ 3: NBAR2 アプリケーション識別による WebEx / YouTube 動的分類・マーキング
 
-* **問題:** ストリーミングビデオ全般を `DSCP AF31` にマークする一方で、YouTube および Netflix トラフィックのみを除外（`match not protocol`）し、別途 Scavenger クラス（`DSCP CS1`）へ低降格させよ。
+* **問題:** インターネット境界ルータ R1 の GigabitEthernet0/0/1 において、L7 パケットインスペクション（NBAR2）を用いて WebEx クラウド通信と YouTube 動画閲覧を判別し、異なる DSCP マークを付与せよ。
 * **要件:**
-  * `voice-and-video` カテゴリの `streaming` サブカテゴリを使用すること。
-  * YouTube および Netflix は除外条件を設定すること。
+  * WebEx 通信（`webex-media`, `webex-app`）を `DSCP AF41` (34) にマークせよ。
+  * YouTube 通信（`youtube`）を Scavenger クラスとし、`DSCP CS1` (8) にマークせよ。
+
 * **設定例:**
 ```bash
-! 1. 一般ストリーミングクラス (YouTube / Netflix を除外)
-class-map match-all CM_BUSINESS_STREAMING
- match protocol attribute category voice-and-video
- match protocol attribute sub-category streaming
- match not protocol youtube
- match not protocol netflix
+! --- 1. NBAR2 Class-Map の定義 ---
+class-map match-any CM_NBAR_WEBEX
+ match protocol webex-media
+ match protocol webex-app
 
-! 2. Scavenger アプリクラス (YouTube / Netflix)
-class-map match-any CM_SCAVENGER_APPS
+class-map match-any CM_NBAR_YOUTUBE
  match protocol youtube
- match protocol netflix
 
-! 3. マーキングポリシーの作成
-policy-map PM_CLASSIFY_STREAMING
- class CM_BUSINESS_STREAMING
-  set dscp af31
- class CM_SCAVENGER_APPS
+! --- 2. Policy-Map の定義 ---
+policy-map PM_NBAR_MARK
+ class CM_NBAR_WEBEX
+  set dscp af41
+ class CM_NBAR_YOUTUBE
   set dscp cs1
  class class-default
   set dscp default
 
-! 4. インターフェイスバインド
+! --- 3. インターフェイス適用 ＆ NBAR2 有効化 ---
 interface GigabitEthernet0/0/1
- service-policy input PM_CLASSIFY_STREAMING
+ description LAN_Edge_Interface
+ ip nbar protocol-discovery
+ service-policy input PM_NBAR_MARK
 ```
+
 * **検証方法:**
-  * 社内ビデオ配信を視聴し、`CM_BUSINESS_STREAMING` にマッチして `DSCP AF31` が付与されることを確認。
-  * YouTube を視聴し、`CM_SCAVENGER_APPS` にマッチして `DSCP CS1` に低降格されることを確認。
+  * `show ip nbar protocol-discovery interface GigabitEthernet0/0/1` を実行し、WebEx および YouTube のトラフィックバイト数がカウントされていることを確認。
+  * `show policy-map interface GigabitEthernet0/0/1` で各クラスのパケットマッチ数を確認。
 
 ---
 
-### ラボ 4: `ip nbar custom` によるカスタム ASCII アプリケーション定義
+### ラボ 4: Table Map を用いた DSCP-to-CoS / CoS-to-DSCP 相互変換構成
 
-* **問題:** 企業独自開発の営業基幹システム（TCP ポート 4567 を使用し、パケット先頭 5 バイト目に "SALES" という ASCII 文字列を含む）を NBAR2 カスタムプロトコルとして定義し、`DSCP AF21` をマークせよ。
+* **問題:** トランクポートを通過するパケットに対して、カスタムな `table-map` を定義して L2 CoS と L3 DSCP の相互書き換えを実行せよ。
 * **要件:**
-  * カスタムプロトコル名: `CUST_SALES_APP`
-  * オフセット: 5 バイト目、文字列: "SALES"、ソース TCP ポート: 4567
+  * 入力された DSCP 値をベースに、CoS 5 ➔ DSCP 46, CoS 4 ➔ DSCP 34, CoS 3 ➔ DSCP 24, その他 ➔ DSCP 0 にマッピング変換せよ。
+
 * **設定例:**
 ```bash
-! 1. カスタム NBAR2 プロトコルの定義
-ip nbar custom CUST_SALES_APP 5 ascii SALES source tcp 4567
+! --- 1. Table-Map の作成 ---
+table-map MAP_COS_TO_DSCP
+ map from 5 to 46
+ map from 4 to 34
+ map from 3 to 24
+ default 0
 
-! 2. Class-Map でのカスタムプロトコル指定
-class-map match-all CM_SALES_APP
- match protocol CUST_SALES_APP
+! --- 2. MQC Class-Map ＆ Policy-Map での Table-Map 適用 ---
+class-map match-any CM_TAGGED_TRAFFIC
+ match cos 3 4 5
 
-! 3. Policy-Map での AF21 マーキング
-policy-map PM_SALES_MARKING
- class CM_SALES_APP
+policy-map PM_TABLEMAP_CONVERT
+ class CM_TAGGED_TRAFFIC
+  set dscp cos table MAP_COS_TO_DSCP
+ class class-default
+  set dscp default
+
+! --- 3. インターフェイス適用 ---
+interface GigabitEthernet1/0/24
+ description Trunk_Uplink
+ service-policy input PM_TABLEMAP_CONVERT
+```
+
+* **検証方法:**
+  * `show table-map MAP_COS_TO_DSCP` でマップテーブル定義を確認。
+  * `show policy-map interface GigabitEthernet1/0/24` で変換適用数を確認。
+
+---
+
+### ラボ 5: Object-Group と MQC を組み合わせた複合アプリケーション分類
+
+* **問題:** 企業内で利用される複数の管理用プロトコル（SSH, SNMP, Syslog, NTP）およびデータ転送プロトコルを Object-Group でまとめ、効率的に DSCP マーキングを行え。
+* **要件:**
+  * Object-Group `OG_MGMT_SERVICES`（TCP 22, UDP 161, UDP 514, UDP 123）に一致する通信を `DSCP CS2` (16) にマークせよ。
+  * Object-Group `OG_CRITICAL_SERVERS`（10.50.0.0/24）からの通信を `DSCP AF21` (18) にマークせよ。
+
+* **設定例:**
+```bash
+! --- 1. Object-Group の定義 ---
+object-group service OG_MGMT_SERVICES
+ tcp eq 22
+ udp eq 161
+ udp eq 514
+ udp eq 123
+
+object-group network OG_CRITICAL_SERVERS
+ 10.50.0.0 255.255.255.0
+
+! --- 2. ACL の定義 ---
+ip access-list extended ACL_MGMT_TRAFFIC
+ permit object-group OG_MGMT_SERVICES any any
+
+ip access-list extended ACL_CRITICAL_DATA
+ permit ip object-group OG_CRITICAL_SERVERS any
+
+! --- 3. MQC Class-Map ＆ Policy-Map ---
+class-map match-all CM_MGMT
+ match access-group name ACL_MGMT_TRAFFIC
+
+class-map match-all CM_CRITICAL
+ match access-group name ACL_CRITICAL_DATA
+
+policy-map PM_OBJECTGROUP_MARK
+ class CM_MGMT
+  set dscp cs2
+ class CM_CRITICAL
   set dscp af21
  class class-default
   set dscp default
 
-! 4. インターフェイス適用
-interface GigabitEthernet0/0/1
- service-policy input PM_SALES_MARKING
+! --- 4. インターフェイス適用 ---
+interface GigabitEthernet1/0/5
+ service-policy input PM_OBJECTGROUP_MARK
 ```
+
 * **検証方法:**
-  * `show ip nbar port-map CUST_SALES_APP` を実行し、ポートおよびバッファ一致条件を確認。
-  * 該当パケットを送信し、`show policy-map interface GigabitEthernet0/0/1` で `CM_SALES_APP` のカウント増加を確認。
+  * `show access-list ACL_MGMT_TRAFFIC` で Object-Group の展開状態を確認。
+  * `show policy-map interface GigabitEthernet1/0/5` でマッチ数を確認。
 
 ---
 
-### ラボ 5: `ip nbar custom` による HEX オフセットバイナリパターン定義
+### ラボ 6: IPsec VPN / GRE トンネル環境における `qos pre-classify` 構成
 
-* **問題:** 特定のマルウェア・攻撃通信（UDP 目的地ポート 3000、ペイロード 7 バイト目に HEX パターン `0x56` を含む）を NBAR2 カスタムシグネチャで検出し、即座にドロップさせよ。
+* **問題:** ルータ R1 で GRE/IPsec トンネルを作成して通信を行っている。暗暗号化前のインナー IP ヘッダーの QoS マーク（DSCP）に基づいて、アウトバウンド物理物理インターフェイス上で分類・キューイング制御を行いたい。
 * **要件:**
-  * プロトコル名: `CUST_VIRUS_SIG`
-  * オフセット: 7 バイト目、HEX 値: `56`、宛先 UDP ポート: 3000
+  * `qos pre-classify` 機能を有効化し、暗号化前のパケット情報で QoS 評価を行わせよ。
+
 * **設定例:**
 ```bash
-! 1. HEX パターンを用いたカスタム NBAR2 シグネチャ定義
-ip nbar custom CUST_VIRUS_SIG 7 hex 56 destination udp 3000
+! --- 1. トンネルインターフェイス設定 ＆ qos pre-classify 有効化 ---
+interface Tunnel1
+ ip address 172.16.1.1 255.255.255.252
+ tunnel source GigabitEthernet0/0/0
+ tunnel destination 198.51.100.2
+ qos pre-classify
 
-! 2. Class-Map 定義
-class-map match-all CM_VIRUS_TRAFFIC
- match protocol CUST_VIRUS_SIG
+! --- 2. MQC キューイングポリシー作成 ---
+class-map match-all CM_VOIP_INNER
+ match dscp ef
 
-! 3. Policy-Map でのドロップ処理
-policy-map PM_BLOCK_VIRUS
- class CM_VIRUS_TRAFFIC
-  drop
+policy-map PM_WAN_OUT
+ class CM_VOIP_INNER
+  priority percent 30
+ class class-default
+  bandwidth percent 70
 
-! 4. 適用
-interface GigabitEthernet0/0/1
- service-policy input PM_BLOCK_VIRUS
+! --- 3. 物理 WAN インターフェイスへの適用 ---
+interface GigabitEthernet0/0/0
+ service-policy output PM_WAN_OUT
 ```
+
 * **検証方法:**
-  * `show ip nbar port-map CUST_VIRUS_SIG` で UDP 3000 / HEX 56 の登録を確認。
-  * 該当パケット送出時に `show policy-map interface GigabitEthernet0/0/1` で `drop` カウントが増加することを確認。
+  * トンネル経由で VoIP (DSCP EF) パケットを送信し、`show policy-map interface GigabitEthernet0/0/0` において `CM_VOIP_INNER` クラスに正しくパケットが保持・カウントされていることを確認。
 
 ---
 
-### ラボ 6: Protocol Discovery による双方向トラフィックプロファイリング
+### ラボ 7: Single-Rate Three-Color Policing (1r3c / RFC 2697) による Down-Marking 構成
 
-* **問題:** インターフェイス GigabitEthernet0/0/3 において、IPv4 および IPv6 の双方のアプリケーション通信量をリアルタイム計測・可視化せよ。
+* **問題:** 宛先データトラフィック（10.1.1.0/24 宛て）に対し、1Mbps を超えたトラフィックをドロップさせずに QoS マークを格下げ（Down-Mark）して送信させよ。
 * **要件:**
-  * MQC アクション（Policing/Marking）は適用せず、Protocol Discovery（受動プロファイリング）のみ動作させること。
-  * IPv4 と IPv6 の両方をアクティブ化すること。
+  * CIR 1Mbps, Bc 8000 bytes, Be 16000 bytes の 1r3c ポリサーを構築せよ。
+  * Conform (Green): `DSCP AF21` (18) にマークして転送。
+  * Exceed (Yellow): `DSCP AF22` (20) に格下げして転送。
+  * Violate (Red): `DSCP CS1` (8) に格下げして転送（ドロップしない）。
+
 * **設定例:**
 ```bash
-! 1. インターフェイスでの Protocol Discovery 有効化
-interface GigabitEthernet0/0/3
- ip nbar protocol-discovery
- ip nbar protocol-discovery ipv6
-```
-* **検証方法:**
-  * 通信発生後、`show ip nbar protocol-discovery` を実行し、プロトコルごとの Input/Output バイト数および bps 速度を確認。
-  * `show ip nbar protocol-discovery top-n 5` を実行し、帯域消費上位 5 アプリを表示。
+! --- 1. Class-Map の作成 ---
+ip access-list extended ACL_DATA_FLOW
+ permit ip any 10.1.1.0 0.0.0.255
 
----
+class-map match-all CM_DATA_FLOW
+ match access-group name ACL_DATA_FLOW
 
-### ラボ 7: トンネル化 IPv6 トラフィック (Teredo / ISATAP) の NBAR2 識別 ＆ MQC 適用
-
-* **問題:** IPv4 ネットワーク上をトンネル化されて通過する Teredo および ISATAP 経由の IPv6 トラフィックを NBAR2 で識別し、200 kbps にポリシングせよ。
-* **要件:**
-  * `ip nbar classification tunneled-traffic` 機能を有効化すること。
-  * `teredo-ipv6-tunneled` および `isatap-ipv6-tunneled` プロトコルをマッチさせること。
-* **設定例:**
-```bash
-! 1. トンネル化トラフィックの NBAR2 識別をグローバル有効化
-ip nbar classification tunneled-traffic teredo
-ip nbar classification tunneled-traffic isatap
-
-! 2. トンネル化 IPv6 クラスマップの定義
-class-map match-any CM_TUNNELED_IPV6
- match protocol teredo-ipv6-tunneled
- match protocol isatap-ipv6-tunneled
-
-! 3. Policy-Map でのポリシング
-policy-map PM_POLICE_TUNNELED_V6
- class CM_TUNNELED_IPV6
-  police 200000
-   conform-action transmit
-   exceed-action drop
-
-! 4. インターフェイス適用
-interface GigabitEthernet0/0/1
- service-policy input PM_POLICE_TUNNELED_V6
-```
-* **検証方法:**
-  * Teredo トンネル経由の通信を発生させ、`show policy-map interface GigabitEthernet0/0/1` で `CM_TUNNELED_IPV6` にマッチしポリシングされることを確認。
-
----
-
-### ラボ 8: NBAR2 ＋ 1r3c Policier (RFC 2697) による Down-Marking 構成
-
-* **問題:** Citrix トラフィック（`citrix`）に対して、CIR 2 Mbps（バースト 37,500 バイト）の 1r3c ポリサーを適用せよ。帯域内（Conform）は `DSCP AF21` で送信し、超過（Exceed）したパケットは `DSCP AF22` に Down-mark（降格）して送信、違反（Violate）パケットはドロップせよ。
-* **要件:**
-  * Single-Rate Three-Color Policier (1r3c / RFC 2697) を使用すること。
-* **設定例:**
-```bash
-! 1. Citrix Class-Map
-class-map match-all CM_CITRIX
- match protocol citrix
-
-! 2. 1r3c Policier Policy-Map
-policy-map PM_CITRIX_MARKDOWN
- class CM_CITRIX
-  police cir 2000000 bc 37500 be 37500
+! --- 2. Policy-Map ＆ 1r3c ポリサー設定 ---
+policy-map PM_MARKDOWN_POLICE
+ class CM_DATA_FLOW
+  police cir 1000000 bc 8000 be 16000
    conform-action set-dscp-transmit af21
    exceed-action set-dscp-transmit af22
-   violate-action drop
+   violate-action set-dscp-transmit cs1
 
-! 3. インターフェイス適用
-interface GigabitEthernet0/0/2
- service-policy input PM_CITRIX_MARKDOWN
+! --- 3. インターフェイス適用 ---
+interface GigabitEthernet1/0/15
+ service-policy input PM_MARKDOWN_POLICE
 ```
+
 * **検証方法:**
-  * 2Mbps 未満の通信で `DSCP AF21` が付与され、2Mbps 超過時に `DSCP AF22` へ降格マークされ、大幅バースト時にドロップされることを `show policy-map interface GigabitEthernet0/0/2` で確認。
+  * テスターから 2Mbps の帯域でパケットを送出し、`show policy-map interface GigabitEthernet1/0/15` で `conformed`, `exceeded`, `violated` パケット数とそれぞれの DSCP 書き換えアクション実行数を確認。
 
 ---
 
-### ラボ 9: NBAR2 ＋ LLQ (Voice) ＋ CBWFQ 複合 QoS ポリシー
+### ラボ 8: WLC (Wireless LAN Controller) CAPWAP トンネル QoS マッピング構成
 
-* **問題:** WAN 出力インターフェイスにおいて、NBAR2 で識別した Cisco IP Phone（`cisco-phone`）を 512 kbps の厳格優先キュー（LLQ）へ割り当て、WebEx（`webex-group`）に 2 Mbps（CBWFQ）を保証せよ。
+* **問題:** Catalyst 9800 WLC / AP 環境において、無線クライアントからの WMM User Priority (UP) と有線網 DSCP の相互マッピングを構成せよ。
 * **要件:**
-  * 音声通信には Strict Priority (LLQ) を適用すること。
-  * WebEx アプリケーショングループを使用すること。
+  * WMM UP 6/7 (Voice) を `DSCP EF` (46) にマッピングせよ。
+  * WMM UP 4/5 (Video) を `DSCP AF41` (34) にマッピングせよ。
+  * WMM UP 0 (Best Effort) を `DSCP default` (0) にマッピングせよ。
+
 * **設定例:**
 ```bash
-! 1. Class-Map 定義
-class-map match-all CM_VOICE_PHONE
- match protocol cisco-phone
+! --- 1. Wireless QoS Map の定義 (IOS XE / Cat9800) ---
+wireless qos map bluedscp-to-up 46 to 6
+wireless qos map bluedscp-to-up 34 to 5
+wireless qos map bluedscp-to-up 0 to 0
 
-class-map match-all CM_WEBEX_GROUP
- match protocol application-group webex-group
+! --- 2. QoS Profile の作成 ＆ SSID 適用 ---
+ap profile AP_GLOBAL_PROFILE
+ qos-policy PM_WIRELESS_TRUST
 
-! 2. LLQ / CBWFQ Policy-Map 定義
-policy-map PM_WAN_EGRESS_QOS
- class CM_VOICE_PHONE
-  priority 512
- class CM_WEBEX_GROUP
-  bandwidth 2000
+wlan WLAN_ENTERPRISE 1 enterprise_ssid
+ qos-profile platinum
+```
+
+* **検証方法:**
+  * `show wireless qos map` を実行し、DSCP ↔ WMM UP のマッピングテーブルを確認。
+
+---
+
+### ラボ 9: レガシー MLS QoS (Catalyst 3750) における Trust CoS ＆ 手動 CoS-to-DSCP マッピング
+
+* **問題:** 旧型スイッチ Catalyst 3750 において、QoS を有効化し、GigabitEthernet1/0/1 で `Trust CoS` を構成せよ。
+* **要件:**
+  * `mls qos` をグローバルで有効化すること。
+  * デフォルトの CoS 5 ➔ DSCP 40 マッピングを破棄し、CoS 5 ➔ `DSCP EF` (46) に変換するグローバルマップを適用すること。
+
+* **設定例:**
+```bash
+! --- 1. グローバル QoS 有効化 ＆ CoS-to-DSCP マップ変更 ---
+mls qos
+mls qos map cos-dscp 0 8 16 24 32 46 48 56
+
+! --- 2. インターフェイス設定 ---
+interface GigabitEthernet1/0/1
+ mls qos trust cos
+```
+
+* **検証方法:**
+  * `show mls qos` で `QoS is enabled` を確認。
+  * `show mls qos map cos-dscp` で CoS 5 が 46 にマッピングされていることを確認。
+
+---
+
+### ラボ 10: 802.1X / RADIUS 認証成功時の Dynamic QoS Policy (C3PL) 動的付与構成
+
+* **問題:** アクセスポート GigabitEthernet1/0/2 に接続された端末が 802.1X 認証に成功した際、Cisco ISE (RADIUS) から属性値経由で動的に Inbound QoS Policy をアタッチさせよ。
+* **要件:**
+  * ポート上で C3PL 認証セッションを有効化すること。
+  * RADIUS 属性 `Filter-Id` または `Cisco-AVPair = "qos-policy-in=PM_DYNAMIC_USER"` を受け入れる構成とすること。
+
+* **設定例:**
+```bash
+! --- 1. 動的適用用 Policy-Map の事前作成 ---
+class-map match-all CM_USER_VOICE
+ match dscp ef
+
+policy-map PM_DYNAMIC_USER
+ class CM_USER_VOICE
+  set dscp ef
  class class-default
-  fair-queue
+  set dscp default
 
-! 3. WAN インターフェイス出力バインド
-interface Serial1/0/0
- service-policy output PM_WAN_EGRESS_QOS
+! --- 2. 802.1X / C3PL ポート設定 ---
+interface GigabitEthernet1/0/2
+ switchport mode access
+ authentication port-control auto
+ dot1x pae authenticator
+ access-session inherit disable autoconf
 ```
+
 * **検証方法:**
-  * `show policy-map interface Serial1/0/0` を実行し、`CM_VOICE_PHONE` が Priority Queue として動作し、`CM_WEBEX_GROUP` が 2000 kbps の保証帯域で処理されていることを確認。
-
----
-
-### ラボ 10: NBAR2 ＋ Flexible NetFlow (AVC) 連携と CoPP 併用
-
-* **问题:** NBAR2 DPI エンジンで識別したアプリケーション情報を Flexible NetFlow (FNF) で集計して NMS (10.1.1.50) へエクスポートすると同時に、インバンド管理通信（SSH / SNMP）を CoPP で保護せよ。
-* **要件:**
-  * FNF Record に `application name` キーフィールドを含めること。
-  * CoPP で NBAR2 の CPU 負荷に伴う管理通信応答停止を防止すること。
-* **設定例:**
-```bash
-! 1. FNF Flow Record の定義 (NBAR2 アプリ名を含める)
-flow record REC_AVC
- match ipv4 source address
- match ipv4 destination address
- match application name
- collect counter bytes
- collect counter packets
-
-! 2. Flow Exporter の定義
-flow exporter EXP_NMS
- destination 10.1.1.50
- transport udp 2055
-
-! 3. Flow Monitor の定義
-flow monitor MON_AVC
- record REC_AVC
- exporter EXP_NMS
-
-! 4. インターフェイスへの FNF 適用
-interface GigabitEthernet0/0/1
- ip flow monitor MON_AVC input
-
-! 5. CoPP によるインバンド管理保護
-access-list 100 permit tcp any any eq 22
-access-list 100 permit udp any any eq 161
-
-class-map match-all CM_MGMT_TRAFFIC
- match access-group 100
-
-policy-map PM_COPP
- class CM_MGMT_TRAFFIC
-  police 1000000 bc 10000
-   conform-action transmit
-   exceed-action drop
-
-control-plane
- service-policy input PM_COPP
-```
-* **検証方法:**
-  * `show flow monitor MON_AVC cache` を実行し、流れている通信の `APPLICATION NAME`（例: `http`, `ssl`, `webex-media`）が FNF キャッシュに動的記録されていることを確認。
-  * `show policy-map control-plane` で CoPP の正常動作を確認。
-
----
+  * 端末で 802.1X 認証を実行し、`show access-session interface GigabitEthernet1/0/2 details` を確認。`Applied Policy: PM_DYNAMIC_USER` が表示されていることを検証。
 
 
 ## ❓ 想定試験問題
 
-### 問 1 (トラブルシューティング)
-**シナリオ:**  
-ネットワーク管理者 R1 において、WebEx トラフィックを NBAR2 で識別して `DSCP AF41` をマークする MQC ポリシーを投入した。しかし、`show policy-map interface GigabitEthernet0/0/1` を実行しても `CM_WEBEX` クラスのパケットカウントが一切増加せず、すべてのパケットが `class-default` に分類されている。インターフェイスコンフィグは正しく設定されている。
+### 問 1 (コンフィグ読解・トラブルシューティング)
+**シナリオ:** アクセススイッチ SW1 の GigabitEthernet1/0/1 に接続された端末から IPv6 音声パケットを送信しているが、後続のルータで QoS マークが全て `0` にリセットされていることが判明した。SW1 のコンフィグを確認すると以下のように設定されていた。
 
-**設問:**  
-この現象が発生している最も可能性の高い根本原因と、R1 で確認・実行すべき修復コマンドを述べよ。
-
-* **解答・解説:**
-  * **根本原因:** ルータ上で Cisco Express Forwarding (CEF) が無効化（`no ip cef`）されているため。NBAR/NBAR2 DPI エンジンは CEF スイッチングパス上で動作するよう設計されており、CEF が無効な状態ではパケットがプロセススイッチング処理され、NBAR による L7 ペイロード解析がバイパスされる。
-  * **確認コマンド:**  
-    `show ip cef`（`CEF is not running` と表示されることを確認）
-  * **修復コマンド:**  
-    ```bash
-    R1(config)# ip cef
-    R1(config)# ipv6 cef
-    ```
-
----
-
-### 問 2 (コンフィグ読解・トラブルシューティング)
-**シナリオ:**  
-デュアルスタック環境の WAN 境界ルータにおいて、以下の Class-Map が定義されている。
 ```bash
-class-map match-all CM_VOICE_SIGNALING
- match ip dscp cs3
+class-map match-all CM_VOICE
+ match ip dscp ef
+
+policy-map PM_MARK
+ class CM_VOICE
+  set dscp ef
+ class class-default
+  set dscp default
+
+interface GigabitEthernet1/0/1
+ service-policy input PM_MARK
 ```
-IPv4 の SIP シグナリングパケットは正常にマッチして優先制御されているが、IPv6 SIP パケットがこのクラスにマッチせず `class-default` に落とされる障害が発生している。
 
-**設問:**  
-このコンフィグの不備を指摘し、IPv4 および IPv6 の双方に正しくマッチさせるための修正コマンドを提示せよ。
+**設問:** この障害が発生している直接的な原因と、SW1 で実行すべき修復コマンドを答えよ。
 
-* **解答・解説:**
-  * **不備の指摘:** `match ip dscp` コマンドは IPv4 パケットの ToS/DSCP ヘッダーのみを評価するキーワードであり、IPv6 パケットの Traffic Class / DSCP ヘッダーを評価対象外として無視する。
-  * **修正コマンド:**  
-    `ip` キーワードを削除し、IPv4/IPv6 共通キーワードである `match dscp` に変更する。
+* **解答:**
+  * **原因:** `class-map` 内で `match ip dscp ef` が使用されているため。`match ip dscp` は **IPv4 パケットのみ** にマッチする構文であり、入力された IPv6 音声パケットは `CM_VOICE` クラスをスルーして `class-default` にヒットし、`set dscp default` (0) に書き換えられてしまっていた。
+  * **修復コマンド:**
     ```bash
-    R1(config)# class-map match-all CM_VOICE_SIGNALING
-    R1(config-cmap)# no match ip dscp cs3
-    R1(config-cmap)# match dscp cs3
+    class-map match-all CM_VOICE
+     no match ip dscp ef
+     match dscp ef
     ```
 
 ---
 
-### 問 3 (Design / AVC リソース設計)
-**シナリオ:**  
-大規模拠点ルータ（ASR 1000 シリーズ）において、NBAR2 Protocol Discovery と Flexible NetFlow (FNF) を同時有効化して全通信の可視化（AVC）を行っている。ピーク時間帯になると、一部の通信でプロトコル判定が `Unknown` にフォールバックする現象が発生した。
+### 問 2 (Design / 信頼境界)
+**シナリオ:** 大規模企業網において、一般端末 PC が自発的に DSCP EF (46) マークを付与してバックボーン帯域を無断占有するセキュリティ違反が発生している。アクセス層には Cisco IP Phone と PC がデイジーチェーン接続されている。
 
-**設問:**  
-この現象の発生原因として考えられる NBAR2 システムリソース上の理由と、運用中に確認すべき検証コマンドを答えよ。また、CPU/メモリ保護の観点から推奨されるメモリ限界値（パーセンテージ）を述べよ。
+**設問:** PC からの QoS 偽装パケットを確実に遮断しつつ、Cisco IP Phone からの正規の音声パケット（CoS 5 / DSCP 46）を保護するためのアクセスポート設計（Trust Boundary）と設定方針を述べよ。
 
-* **解答・解説:**
-  * **発生原因:** ルータの NBAR2 DPI エンジンに割り当てられたアクティブフロー数またはメモリ消費上限（Maximum Memory Usage）を超滅したため、新規発生フローの DPI ペイロード解析がスキップされ `Unknown` として処理された。
-  * **検証コマンド:**  
-    `show ip nbar resources flow`（アクティブセッション数および Peak Memory Usage を確認）
-  * **推奨限界値:** NBAR2 に割り当てられたメモリ使用率は **70% 以下** に抑えることが Cisco ベストプラクティスとして推奨される。
+* **解答:**
+  * **設計方針:** アクセスポートで **Conditional Trust (条件付き信頼)** を確立する。スイッチは CDP を用いて対向が Cisco IP Phone であることを検証した場合にのみ、Voice VLAN からの CoS 5 (Voice) / CoS 3 (Signaling) トラフィックの信頼を動的に拡張する。同時に、IP Phone 内蔵のスイッチチップに対して「PC 用ポート（Data VLAN）からの入力トラフィックの CoS を 0 にリセットしてスイッチへ転送する」指示を出す。
+  * **設定コマンド:**
+    ```bash
+    interface GigabitEthernet1/0/10
+     switchport mode access
+     switchport access vlan 10
+     switchport voice vlan 110
+     cdp enable
+     qos trust device cisco-phone
+     service-policy input PM_COS_TO_DSCP_MAP
+    ```
 
 ---
 
-### 問 4 (実装 / Custom Protocol)
-**シナリオ:**  
-社内独自開発アプリ（送信元 TCP ポート 8888、パケットの 10 バイト目に ASCII 文字列 "DATABASE" を保持）の通信を識別し、`DSCP AF21` をマークする必要がある。
+### 問 3 (トラブルシューティング / CDP 依存関係)
+**シナリオ:** 管理者がセキュリティポリシー強化のため、全スイッチポートで一律 `no cdp run` を設定した。その直後から、Cisco IP Phone 経由で接続された全通話の音声品質が急激に悪化し、パケットドロップが多発した。
 
-**設問:**  
-この要求を満たすための `ip nbar custom` 設定コマンドおよび Class-Map コンフィグを記述せよ。
+**設問:** CDP を無効化したことで Conditional Trust がどのように影響を受けたか説明せよ。
 
-* **解答・解説:**
+* **解答:**
+  * **解説:** Conditional Trust (`qos trust device cisco-phone`) は、スイッチと Cisco IP Phone 間の CDP パケット交換によって相手機器を正規認識・認証する仕組みに依存している。`no cdp run` により CDP が停止したことで、スイッチは対向の IP Phone を識別できなくなり、Conditional Trust ポートが自動的に **Untrusted 状態（デフォルト）に落とされた**。その結果、IP Phone から送信された CoS 5 / DSCP EF の音声パケットが全て `DSCP 0` (Best Effort) にリセットされ、キューイングで優先処理されなくなってドロップが発生した。
+
+---
+
+### 問 4 (実装 / NBAR2 マーキング)
+**シナリオ:** 社内網から社外への WebEx メディア通信（`webex-media`）を優先保護するため、ルータの LAN 側ポートにおいて NBAR2 による識別と `DSCP AF41` のマーキングを構成したい。
+
+**設問:** 必要な Class-Map, Policy-Map, インターフェイス設定コマンドを記述せよ。
+
+* **解答:**
   ```bash
-  ! 1. カスタム NBAR2 プロトコルの定義
-  R1(config)# ip nbar custom CUST_DB_APP 10 ascii DATABASE source tcp 8888
+  class-map match-any CM_NBAR_WEBEX
+   match protocol webex-media
 
-  ! 2. Class-Map でのマッチ指定
-  R1(config)# class-map match-all CM_CUSTOM_DB
-  R1(config-cmap)# match protocol CUST_DB_APP
+  policy-map PM_MARK_WEBEX
+   class CM_NBAR_WEBEX
+    set dscp af41
+   class class-default
+    set dscp default
+
+  interface GigabitEthernet0/0/0
+   ip nbar protocol-discovery
+   service-policy input PM_MARK_WEBEX
   ```
 
 ---
 
-### 問 5 (トラブルシューティング / Asymmetric Routing)
-**シナリオ:**  
-2 台のルータ（R1, R2）で HSRP および BGP マルチホームを構成している拠点において、R1 の LAN 入力ポートで NBAR2 Protocol Discovery を有効化したが、多くの Web アプリケーションが `Unknown` と出力される。パケットキャプチャを確認すると、送信パケットは R1 を通過しているが、戻りパケットは R2 を通過していることが判明した。
+### 問 5 (コンフィグ読解 / Table Map)
+**シナリオ:** 以下のコンフィグが適用されたスイッチポートの動作について答えよ。
 
-**設問:**  
-NBAR2 がプロトコル識別失敗（`Unknown` 化）に至った技術的理由を説明せよ。
+```bash
+table-map MAP_MARKDOWN
+ map from 18 to 8
+ default copy
 
-* **解答・解説:**
-  * **技術的理由:** NBAR2 DPI エンジンは、TCP/UDP のハンドシェイクや双方向シーケンス（クライアントからのリクエストとサーバーからのレスポンスの相互交信）を同一ルータ上で追跡してシグネチャ照合を行う。非対称ルーティング（Asymmetric Routing）が発生すると、片方向のパケットしか観察できず、フローのステートフル判定が完結しないため `Unknown` に判定がフォールバックする。
+policy-map PM_POLICE_MARK
+ class CM_DATA
+  police 10000000 8000 exceed-action set-dscp-transmit dscp table MAP_MARKDOWN
+
+interface GigabitEthernet1/0/5
+ service-policy input PM_POLICE_MARK
+```
+
+**設問:** 入力パケットが 10Mbps を超えた（Exceed）場合、`DSCP AF21` (18) のパケットおよびその他の DSCP パケットはどのように処理されるか答えよ。
+
+* **解答:**
+  * **動作:** `DSCP AF21` (値 18) のパケットが 10Mbps を超過した場合、`table-map MAP_MARKDOWN` の定義に従って `DSCP CS1` (値 8 - Scavenger) に格下げ（Down-mark）されて転送される。その他の DSCP 値を持つパケットが超過した場合は、`default copy` の定義に従って、元の DSCP 値を維持したまま転送される。
 
 ---
 
 ## 🔗 参考リソース
 
-Cisco 公式ドキュメントおよび技術資料:
+Cisco 公式ドキュメントおよび Cisco Live 技術資料：
 
-* Cisco IOS XE Quality of Service Configuration Guide - Classifying Network Traffic Using NBAR
-* Cisco Command Reference - ip nbar protocol-discovery
-* Cisco Live Presentation - BRKENT-2731: What QoS can do for your network with Catalyst 8000 and IOS XE
-* Cisco Product Bulletin - NBAR2 Protocol Library and Protocol Pack Release Notes
-* Cisco Technical Note - Troubleshooting NBAR and NBAR2 Classification Issues
-* Cisco Application Visibility and Control (AVC) Solution Guide
-
----
-
-## 📝 補足（Notes）
-
-### NBAR / NBAR2 の学習要点チェックリスト
-1. **CEF 必須:** `ip cef` / `ipv6 cef` が有効化されているか？
-2. **コマンドの共通化:** `match ip dscp` ではなく `match dscp` または `match protocol` を使っているか？
-3. **Protocol Pack の概念:** NBAR2 では PDLM ではなく統合 `.pak` ファイルで動作すること。
-4. **属性 (Attribute) 分類:** `category`, `sub-category`, `application-group` の使い分け。
-5. **カスタムプロトコル:** `ip nbar custom <NAME> <OFFSET> <ascii|hex> <PATTERN> [source|destination] [tcp|udp] <PORT>` の構文理解。
-6. **非対称パスの考慮:** 非対称ルーティング環境では NBAR2 の識別精度が低下することの認識。
+* Cisco Live - Campus QoS Design Simplified (BRKCRS-2501)
+* Cisco IOS XE 17.x Quality of Service Solutions Configuration Guide
+* Cisco Catalyst 9300 Series Switch QoS Configuration Guide
+* Cisco Technical Note: Quality of Service (QoS) Differentiated Services Code Point (DSCP) and Precedence Values
+* Cisco Validated Design (CVD): Enterprise Quality of Service Design Guide
 
 ---
 
+## 📝 **補足（Notes）**
 
+### 1. QoS チートシート (DSCP ↔ Binary ↔ Decimal マッピング表)
+
+| サービス記述 | PHB クラス | DSCP 名 | Binary | Decimal | 主な用途 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Voice Media** | EF | `ef` | `101110` | **46** | VoIP 音声メディア (厳格優先) |
+| **Broadcast Video** | CS5 | `cs5` | `101000` | **40** | テレビ放送・ライブ動画配信 |
+| **Interactive Video**| AF41 | `af41` | `100010` | **34** | 双方向ビデオ会議 (WebEx, TelePresence) |
+| **Call Signaling** | CS3 | `cs3` | `011000` | **24** | 呼制御 (SIP, H.323, SCCP) |
+| **Critical Data** | AF21 | `af21` | `010010` | **18** | トランザクション処理・業務アプリ |
+| **Bulk Data** | AF11 | `af11` | `001010` | **10** | 大容量ファイル転送・FTP |
+| **Scavenger** | CS1 | `cs1` | `001000` | **8** | P2P・YouTube・ノンビジネス通信 |
+| **Best Effort** | DF | `default` | `000000` | **0** | 標準データ通信 |
+
+### 2. トラブル防止チェックリスト
+* [ ] アクセスポートで不要な `qos trust dscp` を排除しているか？
+* [ ] IP Phone ポートで `cdp enable` および `qos trust device cisco-phone` が正しく設定されているか？
+* [ ] MQC で `match ip dscp` ではなく `match dscp` を使用しているか？
+* [ ] トンネル環境で `qos pre-classify` を忘れていないか？
+* [ ] NBAR2 を使用する場合、`ip nbar protocol-discovery` をインターフェイスで有効化しているか？
 
 
 ## 🔗 参考リソースリンク
